@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f2f0e9">
   <title>Orrery — Place into form</title>
   <script>if (location.protocol === 'file:') location.replace('http://127.0.0.1:8765/');</script>
-  <link rel="stylesheet" href="./styles.css?v=17">
+  <link rel="stylesheet" href="./styles.css?v=18">
 </head>
 <body>
 <main id="app" class="app is-finding">
@@ -29,17 +29,17 @@
     </div>
 
     <div class="finder-copy">
-      <p class="kicker">ONE PLACE / ONE IMPRESSION</p>
-      <h1 id="finder-title">Name a place<br>you can <em>feel.</em></h1>
+      <p class="kicker">START WITH THE PLACE</p>
+      <h1 id="finder-title">Choose a place.<br>We’ll draw <em>its shape.</em></h1>
     </div>
 
     <form id="search-form" class="search" autocomplete="off">
       <span class="search-number">01</span>
-      <label for="place-input">SEARCH CITY OR STATE</label>
-      <input id="place-input" type="search" placeholder="e.g. Bengaluru or Karnataka" autocomplete="off" spellcheck="false" role="combobox" aria-controls="suggestions" aria-autocomplete="list" aria-expanded="false" aria-describedby="search-status">
+      <label for="place-input">CHOOSE A CITY OR STATE</label>
+      <input id="place-input" type="search" placeholder="Try Gangtok, Venice or Kyoto" autocomplete="off" spellcheck="false" role="combobox" aria-controls="suggestions" aria-autocomplete="list" aria-expanded="false" aria-describedby="search-status">
       <button type="submit"><span class="search-action">SEARCH</span> <span>↓</span></button>
       <div id="suggestions" class="suggestions" role="listbox" hidden></div>
-      <p id="search-status" class="search-status" aria-live="polite">Choose a verified city or state.</p>
+      <p id="search-status" class="search-status" aria-live="polite">Start typing, then choose a verified result.</p>
     </form>
 
     <div class="finder-foot">
@@ -52,18 +52,19 @@
     <svg viewBox="0 0 1000 500" aria-hidden="true"><path id="flight-path" d="M-40 380 C180 20 540 580 1040 70"/><circle id="flight-dot" cx="0" cy="0" r="8"/></svg>
     <div class="flight-word" id="flight-word">EARTH</div>
     <div class="flight-data"><span id="flight-coord">64.1466° N / 21.9426° W</span><b id="flight-city">REYKJAVÍK</b></div>
+    <div class="flight-steps" aria-label="Map creation progress"><span>FINDING PLACE</span><span>DRAWING STREETS</span><span>COMPOSING ARTWORK</span></div>
   </section>
 
   <section class="composer" aria-label="Artifact composer">
     <div id="style-panel" class="mode-rail" aria-label="Graphic language">
-      <span class="rail-index">A / LANGUAGE</span>
-      <button class="mode is-active" data-mode="signal" aria-label="Signal style" aria-pressed="true"><i aria-hidden="true"></i><span>SIGNAL</span></button>
-      <button class="mode" data-mode="terrain" aria-label="Terrain style" aria-pressed="false"><i aria-hidden="true"></i><span>TERRAIN</span></button>
-      <button class="mode" data-mode="trace" aria-label="Trace style" aria-pressed="false"><i aria-hidden="true"></i><span>TRACE</span></button>
-      <button class="mode" data-mode="void" aria-label="Void style" aria-pressed="false"><i aria-hidden="true"></i><span>VOID</span></button>
-      <button class="mode" data-mode="civic" aria-label="Civic style" aria-pressed="false"><i aria-hidden="true"></i><span>CIVIC</span></button>
+      <span class="rail-index">A / VISUAL STYLE</span>
+      <button class="mode is-active" data-mode="signal" aria-label="Editorial style" aria-pressed="true"><i aria-hidden="true"></i><span>EDITORIAL</span></button>
+      <button class="mode" data-mode="terrain" aria-label="Topographic style" aria-pressed="false"><i aria-hidden="true"></i><span>TOPOGRAPHIC</span></button>
+      <button class="mode" data-mode="trace" aria-label="Blueprint style" aria-pressed="false"><i aria-hidden="true"></i><span>BLUEPRINT</span></button>
+      <button class="mode" data-mode="void" aria-label="Noir style" aria-pressed="false"><i aria-hidden="true"></i><span>NOIR</span></button>
+      <button class="mode" data-mode="civic" aria-label="Signal style" aria-pressed="false"><i aria-hidden="true"></i><span>SIGNAL</span></button>
       <button class="mode" data-mode="night" aria-label="Night style" aria-pressed="false"><i aria-hidden="true"></i><span>NIGHT</span></button>
-      <button class="mode" data-mode="survey" aria-label="Survey style" aria-pressed="false"><i aria-hidden="true"></i><span>SURVEY</span></button>
+      <button class="mode" data-mode="survey" aria-label="Quiet style" aria-pressed="false"><i aria-hidden="true"></i><span>QUIET</span></button>
     </div>
 
     <div class="artifact-space">
@@ -105,6 +106,7 @@
         <div class="detail-scale" aria-hidden="true"><span>ESSENTIAL</span><span>MAXIMUM</span></div>
         <p id="density-description">Major roads and neighborhood streets.</p>
       </div>
+      <p id="map-notice" class="map-notice" aria-live="polite" hidden></p>
       <p id="mobile-map-status" class="mobile-map-status" aria-live="polite"></p>
       <label class="inscription"><span>INSCRIPTION</span><input id="inscription" type="text" value="The shape of somewhere" maxlength="34"></label>
     </aside>
@@ -152,6 +154,6 @@
 
   <dialog id="info-dialog" class="info-dialog"><button class="dialog-x" type="button" data-info-close aria-label="Close">×</button><span>ORRERY / INDEX</span><h2>Geography,<br>made personal.</h2><p>Search for a verified city or state, then compose a map from OpenStreetMap street and water data. The crosshair marks the selected coordinate; extent controls how much surrounding geography is shown.</p><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">MAP DATA © OPENSTREETMAP ↗</a></dialog>
 </main>
-<script src="./app.js?v=17" defer></script>
+<script src="./app.js?v=18" defer></script>
 </body>
 </html>

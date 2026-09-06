@@ -22,6 +22,14 @@ const composer = document.querySelector('.composer');
 const exportDialog = document.querySelector('#export-dialog');
 const infoDialog = document.querySelector('#info-dialog');
 const svgNS = 'http://www.w3.org/2000/svg';
+const preferenceKey = 'orrery-preferences-v1';
+
+function readPreferences() {
+  try { return JSON.parse(window.localStorage.getItem(preferenceKey) || '{}'); }
+  catch { return {}; }
+}
+
+const savedPreferences = readPreferences();
 
 const places = {
   reykjavik: { city: 'Reykjavík', country: 'Iceland', placeType: 'CITY', label: 'Reykjavík, Capital Region, Iceland', lat: '64.1466° N', lon: '21.9426° W', latNum: 64.1466, lonNum: -21.9426 },
@@ -43,6 +51,32 @@ let realMapData = null;
 let activeSuggestionIndex = -1;
 let geographyRequest = 0;
 let markerPoint = [360, 360];
+let userAdjustedScope = Boolean(savedPreferences.scope);
+let userAdjustedDensity = Boolean(savedPreferences.density);
+
+const modeNames = {
+  signal: 'EDITORIAL', terrain: 'TOPOGRAPHIC', trace: 'BLUEPRINT', void: 'NOIR', civic: 'SIGNAL', night: 'NIGHT', survey: 'QUIET'
+};
+
+function rememberPreferences() {
+  try {
+    window.localStorage.setItem(preferenceKey, JSON.stringify({
+      mode: currentMode,
+      density: density.value,
+      scope: scope.value,
+      inscription: inscription.value,
+      output: selectedOutput || savedPreferences.output || null,
+    }));
+  } catch { /* The app remains fully usable when storage is unavailable. */ }
+}
+
+function restorePreferences() {
+  if (modeNames[savedPreferences.mode]) currentMode = savedPreferences.mode;
+  if (/^[1-5]$/.test(savedPreferences.density || '')) density.value = savedPreferences.density;
+  if (/^[1-3]$/.test(savedPreferences.scope || '')) scope.value = savedPreferences.scope;
+  if (typeof savedPreferences.inscription === 'string') inscription.value = savedPreferences.inscription.slice(0, 34);
+  document.querySelector('#map-inscription').textContent = inscription.value.toUpperCase() || 'UNTITLED COORDINATE';
+}
 
 const framePresets = [
   { scale: 1, dx: 0, dy: 0, title: [54, 805], anchor: 'start', metaX: 58, metaAnchor: 'start', countryY: 844, coordinatesY: 890, attribution: [56, 72] },
@@ -314,7 +348,7 @@ async function loadGeography(place) {
   const level = scopeLevels[scope.value] || scopeLevels[2];
   const radius = place.placeType === 'STATE' ? level.stateRadius : level.cityRadius;
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 20000);
+  const timeout = window.setTimeout(() => controller.abort(), 48000);
   try {
     const response = await fetch(`/api/map-data?lat=${place.latNum}&lon=${place.lonNum}&radius=${radius}`, { signal: controller.signal });
     if (!response.ok) return null;
@@ -338,6 +372,8 @@ async function locate(keyOrPlace) {
   }
   placeInput.blur();
   variant = 0;
+  if (!userAdjustedScope) scope.value = currentPlace.placeType === 'STATE' ? '3' : '2';
+  updateScopeControl();
   flightCity.textContent = (currentPlace?.city || rawText || 'Somewhere').toUpperCase();
   flightCoord.textContent = currentPlace ? `${currentPlace.lat} / ${currentPlace.lon}` : 'RESOLVING COORDINATE';
   flight.classList.add('is-active');
@@ -348,9 +384,21 @@ async function locate(keyOrPlace) {
     flightWord.textContent = 'STILL DRAWING';
     signalCopy.textContent = 'STREET DATA IS TAKING LONGER';
   }, 4500);
-  const stages = ['EARTH', 'LATITUDE', 'STREET', 'POINT'];
-  for (const stage of stages) { flightWord.textContent = stage; await pause(330); }
-  flightWord.textContent = 'DRAWING';
+  const stageElements = [...document.querySelectorAll('.flight-steps span')];
+  const stages = [
+    ['FINDING', 'FINDING THE SELECTED PLACE'],
+    ['STREETS', 'DRAWING AVAILABLE STREETS'],
+    ['COMPOSING', 'COMPOSING YOUR ARTWORK'],
+  ];
+  for (const [index, [word, status]] of stages.entries()) {
+    flightWord.textContent = word;
+    signalCopy.textContent = status;
+    stageElements.forEach((element, itemIndex) => {
+      element.classList.toggle('is-active', itemIndex === index);
+      element.classList.toggle('is-done', itemIndex < index);
+    });
+    await pause(440);
+  }
   realMapData = await geographyPromise;
   window.clearTimeout(slowTimer);
   if (!realMapData?.features?.length) {
@@ -363,6 +411,7 @@ async function locate(keyOrPlace) {
     placeInput.focus();
     return;
   }
+  applyMapQualityGuidance(realMapData);
   updatePlace();
   await pause(220);
   app.classList.remove('is-finding'); app.classList.add('is-composing');
@@ -385,7 +434,23 @@ function updatePlace() {
   updateArtworkDescription();
 }
 
-function setMode(mode) {
+function applyMapQualityGuidance(mapData) {
+  const featureCount = mapData?.features?.length || 0;
+  const notice = document.querySelector('#map-notice');
+  notice.hidden = true;
+  notice.textContent = '';
+  if (!userAdjustedDensity) {
+    density.value = featureCount < 450 ? '5' : featureCount < 1400 ? '4' : '3';
+  }
+  if (featureCount < 450) {
+    notice.textContent = featureCount < 120
+      ? 'LIMITED MAP COVERAGE · TRY A NEARBY CITY OR WIDEN THE FRAME'
+      : 'LIGHT MAP COVERAGE · MAXIMUM AVAILABLE DETAIL IS SHOWN';
+    notice.hidden = false;
+  }
+}
+
+function setMode(mode, persist = true) {
   currentMode = mode;
   app.dataset.mode = mode;
   document.querySelectorAll('.mode').forEach(button => {
@@ -395,6 +460,7 @@ function setMode(mode) {
   });
   if (window.matchMedia('(max-width: 900px)').matches) closeMobilePanel();
   updateArtworkDescription();
+  if (persist) rememberPreferences();
 }
 
 function closeMobilePanel() {
@@ -415,7 +481,7 @@ function updateArtworkDescription() {
   const detail = detailLevels?.[density.value]?.[0] || 'Balanced';
   const label = `${currentPlace.city} map poster, ${currentMode} style, ${detail.toLowerCase()} detail, ${scopeValue.textContent.toLowerCase()} extent.`;
   document.querySelector('#artifact').setAttribute('aria-label', label);
-  document.querySelector('#artifact-status').textContent = `${currentPlace.city.toUpperCase()} · ${currentMode.toUpperCase()} · ${detail}`;
+  document.querySelector('#artifact-status').textContent = `${currentPlace.city.toUpperCase()} · ${modeNames[currentMode]} · ${detail}`;
 }
 
 function goHome() {
@@ -585,6 +651,7 @@ function selectOutput(format) {
   document.querySelector('#proof-title').textContent = copy[1];
   document.querySelector('#proof-description').textContent = copy[2];
   updateExportSizeLabels(format);
+  rememberPreferences();
 }
 
 function rasterDimensions(format, edge) {
@@ -746,12 +813,14 @@ function updateDetailControl() {
 }
 
 density.addEventListener('input', () => {
+  userAdjustedDensity = true;
   updateDetailControl();
   generateMap();
   updateArtworkDescription();
+  rememberPreferences();
 });
 
-scope.addEventListener('input', () => { updateScopeControl(); updateDetailControl(); });
+scope.addEventListener('input', () => { userAdjustedScope = true; updateScopeControl(); updateDetailControl(); rememberPreferences(); });
 scope.addEventListener('change', async () => {
   const requestId = ++geographyRequest;
   scope.disabled = true;
@@ -761,6 +830,8 @@ scope.addEventListener('change', async () => {
   const nextMapData = await loadGeography(currentPlace);
   if (requestId === geographyRequest && nextMapData?.features?.length) {
     realMapData = nextMapData;
+    applyMapQualityGuidance(realMapData);
+    updateDetailControl();
     generateMap();
     signalCopy.textContent = `LOCKED / ${currentPlace.lat}`;
     document.querySelector('#mobile-map-status').textContent = 'Map redrawn.';
@@ -777,6 +848,7 @@ updateScopeControl();
 inscription.addEventListener('input', () => {
   document.querySelector('#map-inscription').textContent = inscription.value.toUpperCase() || 'UNTITLED COORDINATE';
   fitInscription(document.querySelector('#poster-map'));
+  rememberPreferences();
 });
 document.querySelector('[data-reframe]').addEventListener('click', () => {
   variant = (variant + 1) % framePresets.length;
@@ -800,6 +872,8 @@ document.querySelectorAll('[data-raster]').forEach(button => button.addEventList
 document.querySelector('[data-info]').addEventListener('click', () => infoDialog.showModal());
 document.querySelector('[data-info-close]').addEventListener('click', () => infoDialog.close());
 
+restorePreferences();
+setMode(currentMode, false);
 makeWorld();
 generateMap();
 fitInscription(document.querySelector('#poster-map'));
