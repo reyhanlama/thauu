@@ -406,7 +406,58 @@ def get_crop_limits(g_proj, center_lat_lon, fig, dist):
     )
 
 
-def fetch_graph(point, dist) -> MultiDiGraph | None:
+def get_crop_limits_from_xy(center_x, center_y, fig, dist):
+    """
+    Build crop limits from an already-projected center point.
+    """
+    fig_width, fig_height = fig.get_size_inches()
+    aspect = fig_width / fig_height
+
+    half_x = dist
+    half_y = dist
+
+    if aspect > 1:
+        half_y = half_x / aspect
+    else:
+        half_x = half_y * aspect
+
+    return (
+        (center_x - half_x, center_x + half_x),
+        (center_y - half_y, center_y + half_y),
+    )
+
+
+def get_visual_center(g_proj, fallback_point):
+    """
+    Find the densest nearby road-node cluster and use it as the poster center.
+
+    This helps hill towns and sparse regions where the selected coordinate is
+    valid but the recognizable urban road fabric sits slightly to one side.
+    """
+    nodes = ox.graph_to_gdfs(g_proj, edges=False)
+    if nodes.empty:
+        return fallback_point, None
+
+    coords = np.array([(geom.x, geom.y) for geom in nodes.geometry if geom is not None])
+    if len(coords) == 0:
+        return fallback_point, None
+
+    grid_size = 250
+    bins = np.floor(coords / grid_size).astype(int)
+    keys, counts = np.unique(bins, axis=0, return_counts=True)
+    densest_key = keys[np.argmax(counts)]
+    in_cell = np.all(bins == densest_key, axis=1)
+    center_x, center_y = np.median(coords[in_cell], axis=0)
+
+    lon, lat = ox.projection.project_geometry(
+        Point(center_x, center_y),
+        crs=g_proj.graph["crs"],
+        to_crs="EPSG:4326",
+    )[0].coords[0]
+    return (lat, lon), (center_x, center_y)
+
+
+def fetch_graph(point, dist, network_type="drive") -> MultiDiGraph | None:
     """
     Fetch street network graph from OpenStreetMap.
 
@@ -421,14 +472,20 @@ def fetch_graph(point, dist) -> MultiDiGraph | None:
         MultiDiGraph of street network, or None if fetch fails
     """
     lat, lon = point
-    graph = f"graph_{lat}_{lon}_{dist}"
+    graph = f"graph_{network_type}_{lat}_{lon}_{dist}"
     cached = cache_get(graph)
     if cached is not None:
         print("✓ Using cached street network")
         return cast(MultiDiGraph, cached)
 
     try:
-        g = ox.graph_from_point(point, dist=dist, dist_type='bbox', network_type='all', truncate_by_edge=True)
+        g = ox.graph_from_point(
+            point,
+            dist=dist,
+            dist_type='bbox',
+            network_type=network_type,
+            truncate_by_edge=True,
+        )
         # Rate limit between requests
         time.sleep(0.5)
         try:
@@ -524,7 +581,7 @@ def create_poster(
 
     # Progress bar for data fetching
     with tqdm(
-        total=3,
+        total=4,
         desc="Fetching map data",
         unit="step",
         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
@@ -532,7 +589,8 @@ def create_poster(
         # 1. Fetch Street Network
         pbar.set_description("Downloading street network")
         compensated_dist = dist * (max(height, width) / min(height, width)) / 4  # To compensate for viewport crop
-        g = fetch_graph(point, compensated_dist)
+        network_type = "all" if compensated_dist <= 2500 else "drive"
+        g = fetch_graph(point, compensated_dist, network_type=network_type)
         if g is None:
             raise RuntimeError("Failed to retrieve street network data.")
         pbar.update(1)
@@ -557,6 +615,16 @@ def create_poster(
         )
         pbar.update(1)
 
+        # 4. Fetch Buildings
+        pbar.set_description("Downloading buildings")
+        buildings = fetch_features(
+            point,
+            compensated_dist,
+            tags={"building": True},
+            name="buildings",
+        )
+        pbar.update(1)
+
     print("✓ All data retrieved successfully!")
 
     # 2. Setup Plot
@@ -567,6 +635,7 @@ def create_poster(
 
     # Project graph to a metric CRS so distances and aspect are linear (meters)
     g_proj = ox.project_graph(g)
+    render_point, render_center_xy = get_visual_center(g_proj, point)
 
     # 3. Plot Layers
     # Layer 1: Polygons (filter to only plot polygon/multipolygon geometries, not points)
@@ -591,13 +660,36 @@ def create_poster(
             except Exception:
                 parks_polys = parks_polys.to_crs(g_proj.graph['crs'])
             parks_polys.plot(ax=ax, facecolor=THEME['parks'], edgecolor='none', zorder=0.8)
+
+    if buildings is not None and not buildings.empty:
+        buildings_polys = buildings[buildings.geometry.type.isin(["Polygon", "MultiPolygon"])]
+        if not buildings_polys.empty:
+            try:
+                buildings_polys = ox.projection.project_gdf(buildings_polys)
+            except Exception:
+                buildings_polys = buildings_polys.to_crs(g_proj.graph['crs'])
+            buildings_polys.plot(
+                ax=ax,
+                facecolor=THEME.get("buildings", THEME["text"]),
+                edgecolor='none',
+                alpha=0.16,
+                zorder=0.9,
+            )
     # Layer 2: Roads with hierarchy coloring
     print("Applying road hierarchy colors...")
     edge_colors = get_edge_colors_by_type(g_proj)
     edge_widths = get_edge_widths_by_type(g_proj)
 
     # Determine cropping limits to maintain the poster aspect ratio
-    crop_xlim, crop_ylim = get_crop_limits(g_proj, point, fig, compensated_dist)
+    if render_center_xy:
+        crop_xlim, crop_ylim = get_crop_limits_from_xy(
+            render_center_xy[0],
+            render_center_xy[1],
+            fig,
+            compensated_dist,
+        )
+    else:
+        crop_xlim, crop_ylim = get_crop_limits(g_proj, render_point, fig, compensated_dist)
     # Plot the projected graph and then apply the cropped limits
     ox.plot_graph(
         g_proj, ax=ax, bgcolor=THEME['bg'],
@@ -703,7 +795,7 @@ def create_poster(
         zorder=11,
     )
 
-    lat, lon = point
+    lat, lon = render_point
     coords = (
         f"{lat:.4f}° N / {lon:.4f}° E"
         if lat >= 0

@@ -45,6 +45,25 @@ pip install -r requirements.txt
 
 ## Usage
 
+### Local Web UI
+
+Start the local browser UI:
+
+```bash
+python web_server.py
+```
+
+Then open [http://127.0.0.1:8765](http://127.0.0.1:8765). If you use a virtual environment, start it with that Python so poster generation can access the installed dependencies:
+
+```bash
+source .venv/bin/activate
+python web_server.py
+```
+
+Search for a verified city or state, then compose the result using live OpenStreetMap street and water data. Orrery provides multiple visual languages, adjustable geographic extent and map detail, inscription editing, three framing compositions, and destination-specific previews for phone, desktop, and print.
+
+Exports are available as PNG or JPEG at up to 4,000 pixels on the longest edge. No API key is required for the local prototype.
+
 ### Generate Poster
 
 If you're using `uv`:

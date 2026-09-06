@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f0e9">
+  <title>Orrery — Place into form</title>
+  <script>if (location.protocol === 'file:') location.replace('http://127.0.0.1:8765/');</script>
+  <link rel="stylesheet" href="./styles.css?v=17">
+</head>
+<body>
+<main id="app" class="app is-finding">
+  <header class="topline">
+    <button class="brand" type="button" data-home><span>O</span>ORRERY</button>
+    <div class="signal"><i></i><span id="signal-copy">SEEKING A COORDINATE</span></div>
+    <button class="index-button" type="button" data-info>INDEX ↗</button>
+  </header>
+
+  <section class="finder" aria-labelledby="finder-title">
+    <div class="globe-wrap" aria-hidden="true">
+      <svg id="world" viewBox="0 0 900 900" role="presentation">
+        <defs><clipPath id="sphere"><circle cx="450" cy="450" r="405"/></clipPath></defs>
+        <circle class="sphere" cx="450" cy="450" r="405"/>
+        <g class="globe-grid" clip-path="url(#sphere)"></g>
+        <g class="globe-land" clip-path="url(#sphere)"></g>
+        <g class="globe-orbits"></g>
+      </svg>
+      <div class="globe-readout"><span>43.4°</span><span>AXIAL FIELD</span></div>
+    </div>
+
+    <div class="finder-copy">
+      <p class="kicker">ONE PLACE / ONE IMPRESSION</p>
+      <h1 id="finder-title">Name a place<br>you can <em>feel.</em></h1>
+    </div>
+
+    <form id="search-form" class="search" autocomplete="off">
+      <span class="search-number">01</span>
+      <label for="place-input">SEARCH CITY OR STATE</label>
+      <input id="place-input" type="search" placeholder="e.g. Bengaluru or Karnataka" autocomplete="off" spellcheck="false" role="combobox" aria-controls="suggestions" aria-autocomplete="list" aria-expanded="false" aria-describedby="search-status">
+      <button type="submit"><span class="search-action">SEARCH</span> <span>↓</span></button>
+      <div id="suggestions" class="suggestions" role="listbox" hidden></div>
+      <p id="search-status" class="search-status" aria-live="polite">Choose a verified city or state.</p>
+    </form>
+
+    <div class="finder-foot">
+      <span>MAP / MEMORY / MATTER</span>
+      <div class="quick-places"><button data-place="reykjavik">REYKJAVÍK</button><button data-place="mumbai">MUMBAI</button><button data-place="seoul">SEOUL</button></div>
+    </div>
+  </section>
+
+  <section class="flight" aria-live="polite" aria-hidden="true">
+    <svg viewBox="0 0 1000 500" aria-hidden="true"><path id="flight-path" d="M-40 380 C180 20 540 580 1040 70"/><circle id="flight-dot" cx="0" cy="0" r="8"/></svg>
+    <div class="flight-word" id="flight-word">EARTH</div>
+    <div class="flight-data"><span id="flight-coord">64.1466° N / 21.9426° W</span><b id="flight-city">REYKJAVÍK</b></div>
+  </section>
+
+  <section class="composer" aria-label="Artifact composer">
+    <div id="style-panel" class="mode-rail" aria-label="Graphic language">
+      <span class="rail-index">A / LANGUAGE</span>
+      <button class="mode is-active" data-mode="signal" aria-label="Signal style" aria-pressed="true"><i aria-hidden="true"></i><span>SIGNAL</span></button>
+      <button class="mode" data-mode="terrain" aria-label="Terrain style" aria-pressed="false"><i aria-hidden="true"></i><span>TERRAIN</span></button>
+      <button class="mode" data-mode="trace" aria-label="Trace style" aria-pressed="false"><i aria-hidden="true"></i><span>TRACE</span></button>
+      <button class="mode" data-mode="void" aria-label="Void style" aria-pressed="false"><i aria-hidden="true"></i><span>VOID</span></button>
+      <button class="mode" data-mode="civic" aria-label="Civic style" aria-pressed="false"><i aria-hidden="true"></i><span>CIVIC</span></button>
+      <button class="mode" data-mode="night" aria-label="Night style" aria-pressed="false"><i aria-hidden="true"></i><span>NIGHT</span></button>
+      <button class="mode" data-mode="survey" aria-label="Survey style" aria-pressed="false"><i aria-hidden="true"></i><span>SURVEY</span></button>
+    </div>
+
+    <div class="artifact-space">
+      <div class="space-coordinate space-coordinate--x">X / <span id="x-coord">21.9426° W</span></div>
+      <div class="space-coordinate space-coordinate--y">Y / <span id="y-coord">64.1466° N</span></div>
+      <div class="poster-orbit" aria-hidden="true"><i></i><i></i></div>
+      <figure id="artifact" class="artifact" tabindex="0" aria-label="Generated map artifact">
+        <svg id="poster-map" viewBox="0 0 720 960" aria-hidden="true">
+          <rect class="map-base" width="720" height="960"/>
+          <g id="map-regions"></g><g id="map-water"></g><g id="map-roads"></g><g id="map-detail"></g>
+          <g class="map-target" data-x="360" data-y="360" transform="translate(360 360)"><circle cx="0" cy="0" r="38"/><circle cx="0" cy="0" r="5"/><path d="M-54 0h108M0 -54v108"/></g>
+          <text class="map-id" x="56" y="72">© RT</text>
+          <text id="map-city" class="map-city" x="54" y="805">REYKJAVÍK</text>
+          <text id="map-country" class="map-country" x="58" y="844">ICELAND</text>
+          <text id="map-coordinates" class="map-coordinates" x="58" y="890">64.1466° N   21.9426° W</text>
+          <path class="map-scale" d="M520 886h142m-142-6v12m71-12v12m71-12v12"/>
+          <g class="map-inscription-mark">
+            <rect class="map-inscription-panel" x="660" y="0" width="60" height="270"/>
+            <text id="map-inscription" class="map-inscription" x="690" y="18" transform="rotate(90 690 18)">THE SHAPE OF SOMEWHERE</text>
+          </g>
+          <text class="map-attribution" x="662" y="938" text-anchor="end">MAP DATA © OPENSTREETMAP · OPENSTREETMAP.ORG/COPYRIGHT</text>
+        </svg>
+      </figure>
+      <button class="reframe" type="button" data-reframe aria-label="Try the next composition"><span>↻</span> REFRAME <small id="frame-count">1 / 3</small></button>
+    </div>
+
+    <aside id="context-panel" class="context">
+      <span class="rail-index">B / MAP SETTINGS</span>
+      <div class="place-lockup"><span id="place-country">ICELAND</span><h2 id="place-city">Reykjavík</h2><small id="place-scope">CITY CENTER · STREET FIELD</small><button type="button" data-change>CHANGE PLACE ↗</button></div>
+      <div class="scope-control">
+        <div class="detail-heading"><label for="scope">MAP EXTENT</label><output id="scope-value" for="scope">CITY</output></div>
+        <input id="scope" type="range" min="1" max="3" value="2" step="1">
+        <div class="detail-scale" aria-hidden="true"><span>CLOSE</span><span>REGION</span></div>
+        <p id="scope-description">3.5 km around the selected coordinate.</p>
+      </div>
+      <div class="detail-control">
+        <div class="detail-heading"><label for="density">MAP DETAIL</label><output id="density-value" for="density">BALANCED</output></div>
+        <input id="density" type="range" min="1" max="5" value="3" step="1">
+        <div class="detail-scale" aria-hidden="true"><span>ESSENTIAL</span><span>MAXIMUM</span></div>
+        <p id="density-description">Major roads and neighborhood streets.</p>
+      </div>
+      <p id="mobile-map-status" class="mobile-map-status" aria-live="polite"></p>
+      <label class="inscription"><span>INSCRIPTION</span><input id="inscription" type="text" value="The shape of somewhere" maxlength="34"></label>
+    </aside>
+
+    <nav class="mobile-toolstrip" aria-label="Artwork controls">
+      <button type="button" data-mobile-panel="style" aria-controls="style-panel" aria-expanded="false">STYLE</button>
+      <button type="button" data-mobile-panel="map" aria-controls="context-panel" aria-expanded="false">MAP</button>
+      <button type="button" data-mobile-panel="type" aria-controls="context-panel" aria-expanded="false">TYPE</button>
+    </nav>
+
+    <footer class="action-line">
+      <div><span id="artifact-status">REYKJAVÍK · SIGNAL · BALANCED</span><i></i><span id="map-source">© RT</span></div>
+      <button id="export-button" type="button">MAKE IT YOURS <b>↗</b></button>
+    </footer>
+  </section>
+
+  <dialog id="export-dialog" class="export-dialog proof-dialog" aria-labelledby="proof-title" aria-describedby="proof-description">
+    <div class="proof-wrap">
+      <button class="dialog-x" type="button" data-close aria-label="Close">×</button>
+      <div class="proof-stage">
+        <div id="proof-artifact" class="proof-artifact" aria-label="Finished artifact preview"></div>
+        <div class="developing"><span>DEVELOPING ARTIFACT</span><i></i></div>
+      </div>
+      <div class="proof-actions">
+        <span id="proof-kicker" class="dialog-index">ARTIFACT / READY</span>
+        <h2 id="proof-title">There it is.</h2>
+        <p id="proof-description">Your place has already been made. Choose where you want to see it.</p>
+        <div class="output-actions" aria-label="Preview options">
+          <button type="button" data-preview="phone"><span>SEE ON PHONE</span><small>9 : 19.5</small><b>→</b></button>
+          <button type="button" data-preview="screen"><span>SEE ON DESKTOP</span><small>16 : 9</small><b>→</b></button>
+          <button type="button" data-preview="print"><span>SEE AS A PRINT</span><small>3 : 4</small><b>→</b></button>
+        </div>
+        <div id="raster-exports" class="raster-exports" hidden>
+          <span>EXPORT THIS IMAGE</span>
+          <div>
+            <button type="button" data-raster="png-max">PNG <small data-export-size="png-max">MAX · 4000 PX</small></button>
+            <button type="button" data-raster="jpeg-high">JPEG <small data-export-size="jpeg-high">HIGH · 3200 PX</small></button>
+            <button type="button" data-raster="jpeg-small">JPEG <small data-export-size="jpeg-small">SMALL · 2000 PX</small></button>
+          </div>
+        </div>
+        <button class="keep-editing" type="button" data-close>KEEP EDITING</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="info-dialog" class="info-dialog"><button class="dialog-x" type="button" data-info-close aria-label="Close">×</button><span>ORRERY / INDEX</span><h2>Geography,<br>made personal.</h2><p>Search for a verified city or state, then compose a map from OpenStreetMap street and water data. The crosshair marks the selected coordinate; extent controls how much surrounding geography is shown.</p><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">MAP DATA © OPENSTREETMAP ↗</a></dialog>
+</main>
+<script src="./app.js?v=17" defer></script>
+</body>
+</html>
