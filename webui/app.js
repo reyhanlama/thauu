@@ -22,10 +22,14 @@ const composer = document.querySelector('.composer');
 const exportDialog = document.querySelector('#export-dialog');
 const infoDialog = document.querySelector('#info-dialog');
 const svgNS = 'http://www.w3.org/2000/svg';
-const preferenceKey = 'orrery-preferences-v1';
+const preferenceKey = 'mapthis-preferences-v1';
+const legacyPreferenceKey = 'orrery-preferences-v1';
 
 function readPreferences() {
-  try { return JSON.parse(window.localStorage.getItem(preferenceKey) || '{}'); }
+  try {
+    const saved = window.localStorage.getItem(preferenceKey) || window.localStorage.getItem(legacyPreferenceKey);
+    return JSON.parse(saved || '{}');
+  }
   catch { return {}; }
 }
 
@@ -713,7 +717,7 @@ async function exportRaster(preset, button) {
     if (!outputBlob) throw new Error('Image export failed.');
     const url = URL.createObjectURL(outputBlob);
     const extension = quality.type === 'image/png' ? 'png' : 'jpg';
-    const link = document.createElement('a'); link.href = url; link.download = `orrery-${normalize(currentPlace.city)}-${selectedOutput}-${quality.suffix}.${extension}`;
+    const link = document.createElement('a'); link.href = url; link.download = `mapthis-${normalize(currentPlace.city)}-${selectedOutput}-${quality.suffix}.${extension}`;
     document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     button.textContent = 'SAVED';
     await pause(500);

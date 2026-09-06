@@ -1,5 +1,5 @@
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-const USER_AGENT = 'OrreryMapArtifact/1.0 (https://github.com/reyhanlama/thauu)';
+const USER_AGENT = 'MapThis/1.0 (https://mapthis.xyz)';
 const memoryCache = new Map();
 
 function json(payload, status = 200, cacheControl = 'no-store') {
@@ -91,4 +91,3 @@ export default async function handler(request) {
     return json({ error: 'Map geometry is temporarily unavailable.' }, 502);
   }
 }
-

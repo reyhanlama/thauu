@@ -42,7 +42,7 @@ PLACE_SEARCH_TYPES = [
 
 NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-MAP_USER_AGENT = "OrreryMapArtifact/0.1 (local product prototype)"
+MAP_USER_AGENT = "MapThis/1.0 (https://mapthis.xyz)"
 
 
 def _load_local_env() -> None:

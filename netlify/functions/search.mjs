@@ -1,5 +1,5 @@
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
-const USER_AGENT = 'OrreryMapArtifact/1.0 (https://github.com/reyhanlama/thauu)';
+const USER_AGENT = 'MapThis/1.0 (https://mapthis.xyz)';
 const ALLOWED_TYPES = new Set(['city', 'town', 'municipality', 'state', 'province', 'region']);
 const memoryCache = new Map();
 
@@ -89,4 +89,3 @@ export default async function handler(request) {
     return json({ error: 'Place search is temporarily unavailable.', places: [] }, 502);
   }
 }
-

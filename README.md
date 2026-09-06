@@ -1,6 +1,6 @@
-# City Map Poster Generator
+# mapthis
 
-Generate beautiful, minimalist map posters for any city in the world.
+Turn a meaningful city or state into a distinctive map artwork. The web product lives at [mapthis.xyz](https://mapthis.xyz).
 
 <img src="posters/singapore_neon_cyberpunk_20260118_153328.png" width="250">
 <img src="posters/dubai_midnight_blue_20260118_140807.png" width="250">
@@ -71,7 +71,7 @@ source .venv/bin/activate
 python web_server.py
 ```
 
-Search for a verified city or state, then compose the result using live OpenStreetMap street and water data. Orrery provides multiple visual languages, adjustable geographic extent and map detail, inscription editing, three framing compositions, and destination-specific previews for phone, desktop, and print.
+Search for a verified city or state, then compose the result using live OpenStreetMap street and water data. mapthis provides multiple visual languages, adjustable geographic extent and map detail, inscription editing, three framing compositions, and destination-specific previews for phone, desktop, and print.
 
 Exports are available as PNG or JPEG at up to 4,000 pixels on the longest edge. No API key is required for the local prototype.
 
