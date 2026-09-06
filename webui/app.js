@@ -525,16 +525,31 @@ function adaptSvgForOutput(svg, format) {
   if (!layout) return svg;
 
   svg.setAttribute('viewBox', `0 0 ${layout.width} ${layout.height}`);
+  svg.setAttribute('width', layout.width);
+  svg.setAttribute('height', layout.height);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+  svg.setAttribute('data-output-format', format);
+  svg.style.overflow = 'hidden';
   const base = svg.querySelector('.map-base');
+  base.setAttribute('x', 0);
+  base.setAttribute('y', 0);
   base.setAttribute('width', layout.width);
   base.setAttribute('height', layout.height);
 
-  const outputTransform = format === 'phone'
-    ? { scale: 1.62, dx: -223, dy: 0 }
+  const frame = framePresets[variant % framePresets.length];
+  const destination = format === 'phone'
+    ? { scale: 1.75, target: [360, 520] }
     : format === 'screen'
-      ? { scale: 1.7, dx: 0, dy: -250 }
-      : { scale: 1, dx: 0, dy: 0 };
-  const framedTransform = combineTransforms(outputTransform, framePresets[variant % framePresets.length]);
+      ? { scale: 1.75, target: [640, 250] }
+      : null;
+  const outputTransform = destination
+    ? {
+        scale: destination.scale,
+        dx: destination.target[0] - destination.scale * (markerPoint[0] * frame.scale + frame.dx),
+        dy: destination.target[1] - destination.scale * (markerPoint[1] * frame.scale + frame.dy),
+      }
+    : { scale: 1, dx: 0, dy: 0 };
+  const framedTransform = combineTransforms(outputTransform, frame);
   setMapTransform(svg, framedTransform);
 
   const city = svg.querySelector('.map-city');
