@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f2f0e9">
-  <meta name="description" content="Turn a meaningful city or state into a distinctive map artwork.">
+  <meta name="description" content="Turn a meaningful city, neighbourhood or state into a distinctive map artwork.">
   <meta property="og:title" content="mapthis — Make a place yours">
   <meta property="og:description" content="Turn a meaningful place into a distinctive map artwork.">
   <meta property="og:type" content="website">
@@ -41,8 +41,8 @@
 
     <form id="search-form" class="search" autocomplete="off">
       <span class="search-number">01</span>
-      <label for="place-input">CHOOSE A CITY OR STATE</label>
-      <input id="place-input" type="search" placeholder="Gangtok or Kyoto" autocomplete="off" spellcheck="false" role="combobox" aria-controls="suggestions" aria-autocomplete="list" aria-expanded="false" aria-describedby="search-status">
+      <label for="place-input">CITY, NEIGHBOURHOOD OR STATE</label>
+      <input id="place-input" type="search" placeholder="Indiranagar or Kyoto" autocomplete="off" spellcheck="false" role="combobox" aria-controls="suggestions" aria-autocomplete="list" aria-expanded="false" aria-describedby="search-status">
       <button type="submit"><span class="search-action">SEARCH</span> <span>↓</span></button>
       <div id="suggestions" class="suggestions" role="listbox" hidden></div>
       <p id="search-status" class="search-status" aria-live="polite">Start typing, then choose a verified result.</p>
@@ -158,8 +158,8 @@
     </div>
   </dialog>
 
-  <dialog id="info-dialog" class="info-dialog"><button class="dialog-x" type="button" data-info-close aria-label="Close">×</button><span>MAPTHIS / INDEX</span><h2>Geography,<br>made personal.</h2><p>Search for a verified city or state, then compose a map from OpenStreetMap street and water data. The crosshair marks the selected coordinate; extent controls how much surrounding geography is shown.</p><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">MAP DATA © OPENSTREETMAP ↗</a></dialog>
+  <dialog id="info-dialog" class="info-dialog"><button class="dialog-x" type="button" data-info-close aria-label="Close">×</button><span>MAPTHIS / INDEX</span><h2>Geography,<br>made personal.</h2><p>Search for a verified city, neighbourhood or state, then compose a map from OpenStreetMap street and water data. The crosshair marks the selected coordinate; extent controls how much surrounding geography is shown.</p><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">MAP DATA © OPENSTREETMAP ↗</a></dialog>
 </main>
-<script src="./app.js?v=21" defer></script>
+<script src="./app.js?v=23" defer></script>
 </body>
 </html>

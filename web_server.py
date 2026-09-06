@@ -423,15 +423,15 @@ def _format_coordinate(value: float, positive: str, negative: str) -> str:
 
 def _nominatim_places(query: str, limit: int = 8) -> list[dict]:
     cache_key = query.casefold().strip()
-    cached = _read_api_cache("search_v4", cache_key)
+    cached = _read_api_cache("search_v6", cache_key)
     if isinstance(cached, list):
         return cached
 
     raw_results = []
-    for feature_type in ("settlement", "state"):
+    for feature_type in (None, "state"):
         params = (
-            f"q={quote(query)}&format=jsonv2&addressdetails=1&limit={limit}"
-            f"&featuretype={feature_type}&accept-language=en"
+            f"q={quote(query)}&format=jsonv2&addressdetails=1&namedetails=1&limit={max(limit * 2, 16)}"
+            f"{'&featuretype=' + feature_type if feature_type else ''}&accept-language=en"
         )
         request = Request(f"{NOMINATIM_SEARCH_URL}?{params}")
         request.add_header("User-Agent", MAP_USER_AGENT)
@@ -452,19 +452,29 @@ def _nominatim_places(query: str, limit: int = 8) -> list[dict]:
             continue
         address = item.get("address") or {}
         address_type = str(item.get("addresstype") or "").casefold()
-        if address_type not in {"city", "town", "municipality", "state", "province", "region"}:
+        state_types = {"state", "province", "region"}
+        locality_types = {"suburb", "neighbourhood", "quarter", "city_district", "borough", "district", "residential"}
+        allowed_types = state_types | locality_types | {"city", "town", "municipality", "village"}
+        if address_type not in allowed_types:
             continue
-        place_type = "STATE" if address_type in {"state", "province", "region"} else "CITY"
+        place_type = "STATE" if address_type in state_types else "LOCALITY" if address_type in locality_types else "CITY"
         city = (
-            address.get("city")
+            item.get("name")
+            or address.get("neighbourhood")
+            or address.get("suburb")
+            or address.get("quarter")
+            or address.get("city_district")
+            or address.get("borough")
+            or address.get("city")
             or address.get("town")
             or address.get("village")
             or address.get("municipality")
-            or item.get("name")
             or item.get("display_name", "Place").split(",")[0]
         )
+        parent_city = address.get("city") or address.get("town") or address.get("village") or address.get("municipality") or ""
         country = address.get("country") or "Unknown"
-        identity = (str(item.get("osm_type") or ""), str(item.get("osm_id") or ""), f"{latitude:.5f}", f"{longitude:.5f}")
+        parent_label = f"{parent_city}, {country}" if place_type == "LOCALITY" and parent_city.casefold() != city.casefold() else country
+        identity = (city.casefold(), parent_city.casefold(), country.casefold(), place_type)
         if identity in seen_places:
             continue
         seen_places.add(identity)
@@ -472,6 +482,8 @@ def _nominatim_places(query: str, limit: int = 8) -> list[dict]:
             {
                 "city": city,
                 "country": country,
+                "parentCity": parent_city,
+                "parentLabel": parent_label,
                 "placeType": place_type,
                 "placeId": f"{item.get('osm_type', 'place')}:{item.get('osm_id', latitude)}",
                 "label": item.get("display_name") or f"{city}, {country}",
@@ -483,7 +495,7 @@ def _nominatim_places(query: str, limit: int = 8) -> list[dict]:
             }
         )
     results = results[:limit]
-    _write_api_cache("search_v4", cache_key, results)
+    _write_api_cache("search_v6", cache_key, results)
     return results
 
 

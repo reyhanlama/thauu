@@ -68,7 +68,7 @@ let realMapData = null;
 let activeSuggestionIndex = -1;
 let geographyRequest = 0;
 let markerPoint = [360, 360];
-let userAdjustedScope = Boolean(savedPreferences.scope);
+let userAdjustedScope = false;
 let userAdjustedDensity = Boolean(savedPreferences.density);
 
 const modeNames = {
@@ -102,10 +102,22 @@ const framePresets = [
 ];
 
 const scopeLevels = {
-  1: { label: 'CLOSE', cityRadius: 1800, stateRadius: 2600 },
-  2: { label: 'CITY', cityRadius: 3500, stateRadius: 4800 },
-  3: { label: 'REGION', cityRadius: 6500, stateRadius: 7000 }
+  1: { label: 'CLOSE', localityRadius: 1100, cityRadius: 1800, stateRadius: 2600 },
+  2: { label: 'CITY', localityRadius: 2200, cityRadius: 3500, stateRadius: 4800 },
+  3: { label: 'REGION', localityRadius: 4200, cityRadius: 6500, stateRadius: 7000 }
 };
+
+function placeRadius(place, level) {
+  if (place.placeType === 'STATE') return level.stateRadius;
+  if (place.placeType === 'LOCALITY') return level.localityRadius;
+  return level.cityRadius;
+}
+
+function placeSubtitle(place) {
+  return place.parentLabel || (place.placeType === 'LOCALITY' && place.parentCity
+    ? `${place.parentCity}, ${place.country}`
+    : place.country);
+}
 
 function node(name, attrs = {}) {
   const element = document.createElementNS(svgNS, name);
@@ -316,10 +328,13 @@ function renderSuggestions(found, emptyMessage = '') {
     button.setAttribute('role', 'option');
     button.setAttribute('aria-selected', 'false');
     const primary = document.createElement('span'); primary.textContent = place.city;
-    const hierarchy = (place.label || `${place.city}, ${place.country}`)
+    const inferredHierarchy = (place.label || `${place.city}, ${place.country}`)
       .split(',').map(part => part.trim()).filter(Boolean)
       .filter((part, partIndex) => partIndex > 0 && part.toLowerCase() !== place.city.toLowerCase())
       .slice(0, 3).join(', ') || place.country;
+    const hierarchy = place.placeType === 'LOCALITY' && place.parentLabel
+      ? place.parentLabel
+      : inferredHierarchy;
     const secondary = document.createElement('small'); secondary.textContent = hierarchy;
     const type = document.createElement('b'); type.textContent = place.placeType || 'CITY';
     button.append(primary, secondary, type);
@@ -348,7 +363,7 @@ async function showSuggestions(query) {
     const data = await response.json();
     if (requestId !== searchRequest || !response.ok) return;
     const found = data.places || local;
-    renderSuggestions(found, 'NO VERIFIED CITY OR STATE FOUND');
+    renderSuggestions(found, 'NO VERIFIED CITY, LOCALITY OR STATE FOUND');
     if (!found.length) signalCopy.textContent = 'NO VERIFIED PLACE FOUND';
   } catch {
     if (!local.length) {
@@ -363,7 +378,7 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
 async function loadGeography(place) {
   if (window.location.protocol === 'file:' || !Number.isFinite(place.latNum) || !Number.isFinite(place.lonNum)) return null;
   const level = scopeLevels[scope.value] || scopeLevels[2];
-  const radius = place.placeType === 'STATE' ? level.stateRadius : level.cityRadius;
+  const radius = placeRadius(place, level);
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 48000);
   try {
@@ -381,7 +396,7 @@ async function locate(keyOrPlace) {
   const key = typeof keyOrPlace === 'string' && places[keyOrPlace] ? keyOrPlace : normalize(rawText);
   currentPlace = typeof keyOrPlace === 'object' ? keyOrPlace : places[key];
   if (!currentPlace) {
-    signalCopy.textContent = 'CHOOSE A CITY OR STATE BELOW';
+    signalCopy.textContent = 'CHOOSE A VERIFIED PLACE BELOW';
     searchForm.classList.add('needs-selection');
     await showSuggestions(rawText);
     placeInput.focus();
@@ -389,7 +404,7 @@ async function locate(keyOrPlace) {
   }
   placeInput.blur();
   variant = 0;
-  if (!userAdjustedScope) scope.value = currentPlace.placeType === 'STATE' ? '3' : '2';
+  if (!userAdjustedScope) scope.value = currentPlace.placeType === 'STATE' ? '3' : currentPlace.placeType === 'LOCALITY' ? '1' : '2';
   updateScopeControl();
   flightCity.textContent = (currentPlace?.city || rawText || 'Somewhere').toUpperCase();
   flightCoord.textContent = currentPlace ? `${currentPlace.lat} / ${currentPlace.lon}` : 'RESOLVING COORDINATE';
@@ -437,10 +452,10 @@ async function locate(keyOrPlace) {
 
 function updatePlace() {
   document.querySelector('#place-city').textContent = currentPlace.city;
-  document.querySelector('#place-country').textContent = currentPlace.country.toUpperCase();
+  document.querySelector('#place-country').textContent = placeSubtitle(currentPlace).toUpperCase();
   updateScopeControl();
   document.querySelector('#map-city').textContent = currentPlace.city.toUpperCase();
-  document.querySelector('#map-country').textContent = currentPlace.country.toUpperCase();
+  document.querySelector('#map-country').textContent = placeSubtitle(currentPlace).toUpperCase();
   document.querySelector('#map-coordinates').textContent = `${currentPlace.lat}   ${currentPlace.lon}`;
   document.querySelector('#x-coord').textContent = currentPlace.lon;
   document.querySelector('#y-coord').textContent = currentPlace.lat;
@@ -777,7 +792,7 @@ searchForm.addEventListener('submit', async event => {
     locate(verified);
     return;
   }
-  signalCopy.textContent = 'CHOOSE A CITY OR STATE BELOW';
+  signalCopy.textContent = 'CHOOSE A VERIFIED PLACE BELOW';
   searchForm.classList.add('needs-selection');
   await showSuggestions(placeInput.value);
   placeInput.focus();
@@ -821,11 +836,12 @@ const detailLevels = {
 
 function updateScopeControl() {
   const level = scopeLevels[scope.value] || scopeLevels[2];
-  const radius = currentPlace.placeType === 'STATE' ? level.stateRadius : level.cityRadius;
+  const radius = placeRadius(currentPlace, level);
   const stateLabels = { 1: 'NEAR', 2: 'CENTER', 3: 'WIDE' };
-  scopeValue.textContent = currentPlace.placeType === 'STATE' ? stateLabels[scope.value] : level.label;
+  const localityLabels = { 1: 'LOCAL', 2: 'DISTRICT', 3: 'CITY' };
+  scopeValue.textContent = currentPlace.placeType === 'STATE' ? stateLabels[scope.value] : currentPlace.placeType === 'LOCALITY' ? localityLabels[scope.value] : level.label;
   scopeDescription.textContent = `${(radius / 1000).toFixed(radius % 1000 ? 1 : 0)} km around the selected coordinate.`;
-  document.querySelector('#place-scope').textContent = `${currentPlace.placeType === 'STATE' ? 'STATE' : 'CITY'} CENTER · ${(radius / 1000).toFixed(radius % 1000 ? 1 : 0)} KM FIELD`;
+  document.querySelector('#place-scope').textContent = `${currentPlace.placeType === 'STATE' ? 'STATE' : currentPlace.placeType === 'LOCALITY' ? 'LOCALITY' : 'CITY'} CENTER · ${(radius / 1000).toFixed(radius % 1000 ? 1 : 0)} KM FIELD`;
   scope.style.setProperty('--detail-progress', `${(Number(scope.value) - 1) * 50}%`);
   updateArtworkDescription();
 }
