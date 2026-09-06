@@ -12,7 +12,7 @@
   <link rel="canonical" href="https://mapthis.xyz/">
   <title>mapthis — Make a place yours</title>
   <script>if (location.protocol === 'file:') location.replace('http://127.0.0.1:8765/');</script>
-  <link rel="stylesheet" href="./styles.css?v=20">
+  <link rel="stylesheet" href="./styles.css?v=21">
 </head>
 <body>
 <main id="app" class="app is-finding">
@@ -42,7 +42,7 @@
     <form id="search-form" class="search" autocomplete="off">
       <span class="search-number">01</span>
       <label for="place-input">CHOOSE A CITY OR STATE</label>
-      <input id="place-input" type="search" placeholder="Try Gangtok, Venice or Kyoto" autocomplete="off" spellcheck="false" role="combobox" aria-controls="suggestions" aria-autocomplete="list" aria-expanded="false" aria-describedby="search-status">
+      <input id="place-input" type="search" placeholder="Gangtok or Kyoto" autocomplete="off" spellcheck="false" role="combobox" aria-controls="suggestions" aria-autocomplete="list" aria-expanded="false" aria-describedby="search-status">
       <button type="submit"><span class="search-action">SEARCH</span> <span>↓</span></button>
       <div id="suggestions" class="suggestions" role="listbox" hidden></div>
       <p id="search-status" class="search-status" aria-live="polite">Start typing, then choose a verified result.</p>
@@ -160,6 +160,6 @@
 
   <dialog id="info-dialog" class="info-dialog"><button class="dialog-x" type="button" data-info-close aria-label="Close">×</button><span>MAPTHIS / INDEX</span><h2>Geography,<br>made personal.</h2><p>Search for a verified city or state, then compose a map from OpenStreetMap street and water data. The crosshair marks the selected coordinate; extent controls how much surrounding geography is shown.</p><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">MAP DATA © OPENSTREETMAP ↗</a></dialog>
 </main>
-<script src="./app.js?v=20" defer></script>
+<script src="./app.js?v=21" defer></script>
 </body>
 </html>

@@ -25,6 +25,19 @@ const svgNS = 'http://www.w3.org/2000/svg';
 const preferenceKey = 'mapthis-preferences-v1';
 const legacyPreferenceKey = 'orrery-preferences-v1';
 
+function syncVisualViewport() {
+  const viewport = window.visualViewport;
+  const keyboardOffset = viewport
+    ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+    : 0;
+  document.documentElement.style.setProperty('--keyboard-offset', `${keyboardOffset}px`);
+  document.documentElement.style.setProperty('--keyboard-lift', `${-keyboardOffset}px`);
+}
+
+syncVisualViewport();
+window.visualViewport?.addEventListener('resize', syncVisualViewport);
+window.visualViewport?.addEventListener('scroll', syncVisualViewport);
+
 function readPreferences() {
   try {
     const saved = window.localStorage.getItem(preferenceKey) || window.localStorage.getItem(legacyPreferenceKey);
