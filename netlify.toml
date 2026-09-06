@@ -1,0 +1,17 @@
+[build]
+  publish = "webui"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/search"
+  to = "/.netlify/functions/search"
+  status = 200
+
+[[redirects]]
+  from = "/api/map-data"
+  to = "/.netlify/functions/map-data"
+  status = 200
+

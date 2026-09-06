@@ -22,6 +22,17 @@ Generate beautiful, minimalist map posters for any city in the world.
 
 ## Installation
 
+## Deploy the web app to Netlify
+
+This repository includes Netlify Functions for live city/state search and map data, so the web app can be deployed as one Netlify project. Import the repository from GitHub and use these settings:
+
+- Base directory: leave blank
+- Build command: leave blank
+- Publish directory: `webui`
+- Functions directory: `netlify/functions`
+
+The committed `netlify.toml` supplies those settings and routes `/api/search` and `/api/map-data` to the functions automatically. No environment variables are required for the prototype. Do not use Netlify Drop with only the `webui` folder because that excludes the API functions.
+
 ### With uv (Recommended)
 
 Make sure [uv](https://docs.astral.sh/uv/) is installed. Running the script by prepending `uv run` automatically creates and manages a virtual environment.
