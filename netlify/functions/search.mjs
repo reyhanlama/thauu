@@ -20,6 +20,23 @@ function coordinate(value, positive, negative) {
   return `${Math.abs(value).toFixed(4)}\u00b0 ${value >= 0 ? positive : negative}`;
 }
 
+function contextLabel(address, city, country, placeType, parentCity) {
+  const area = address.state || address.province || address.region || '';
+  const district = address.state_district || address.county || address.district || '';
+  const candidates = placeType === 'LOCALITY'
+    ? [parentCity || district, area, country]
+    : placeType === 'CITY'
+      ? [district, area, country]
+      : [country];
+  const seen = new Set([city.toLocaleLowerCase('en')]);
+  return candidates.filter(part => {
+    const key = String(part || '').trim().toLocaleLowerCase('en');
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).join(' · ');
+}
+
 async function nominatimRequest(query, featureType = '') {
   const url = new URL(NOMINATIM_SEARCH_URL);
   const parameters = {
@@ -70,7 +87,8 @@ export default async function handler(request) {
       const parentCity = address.city || address.town || address.village || address.municipality || '';
       const country = address.country || 'Unknown';
       const placeType = STATE_TYPES.has(addressType) ? 'STATE' : LOCALITY_TYPES.has(addressType) ? 'LOCALITY' : 'CITY';
-      const identity = `${city.toLocaleLowerCase('en')}|${parentCity.toLocaleLowerCase('en')}|${country.toLocaleLowerCase('en')}|${placeType}`;
+      const context = contextLabel(address, city, country, placeType, parentCity);
+      const identity = `${city.toLocaleLowerCase('en')}|${context.toLocaleLowerCase('en')}|${placeType}`;
       if (seen.has(identity)) continue;
       seen.add(identity);
       const parentLabel = placeType === 'LOCALITY' && parentCity && parentCity.toLocaleLowerCase('en') !== city.toLocaleLowerCase('en')
@@ -81,6 +99,7 @@ export default async function handler(request) {
         country,
         parentCity,
         parentLabel,
+        contextLabel: context,
         placeType,
         placeId: `${item.osm_type || 'place'}:${item.osm_id || latitude}`,
         label: item.display_name || `${city}, ${country}`,

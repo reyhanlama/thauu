@@ -423,7 +423,7 @@ def _format_coordinate(value: float, positive: str, negative: str) -> str:
 
 def _nominatim_places(query: str, limit: int = 8) -> list[dict]:
     cache_key = query.casefold().strip()
-    cached = _read_api_cache("search_v6", cache_key)
+    cached = _read_api_cache("search_v7", cache_key)
     if isinstance(cached, list):
         return cached
 
@@ -474,7 +474,25 @@ def _nominatim_places(query: str, limit: int = 8) -> list[dict]:
         parent_city = address.get("city") or address.get("town") or address.get("village") or address.get("municipality") or ""
         country = address.get("country") or "Unknown"
         parent_label = f"{parent_city}, {country}" if place_type == "LOCALITY" and parent_city.casefold() != city.casefold() else country
-        identity = (city.casefold(), parent_city.casefold(), country.casefold(), place_type)
+        area = address.get("state") or address.get("province") or address.get("region") or ""
+        district = address.get("state_district") or address.get("county") or address.get("district") or ""
+        context_candidates = (
+            [parent_city or district, area, country]
+            if place_type == "LOCALITY"
+            else [district, area, country]
+            if place_type == "CITY"
+            else [country]
+        )
+        context_parts = []
+        seen_context = {city.casefold()}
+        for part in context_candidates:
+            key = str(part or "").strip().casefold()
+            if not key or key in seen_context:
+                continue
+            seen_context.add(key)
+            context_parts.append(str(part).strip())
+        context_label = " · ".join(context_parts)
+        identity = (city.casefold(), context_label.casefold(), place_type)
         if identity in seen_places:
             continue
         seen_places.add(identity)
@@ -484,6 +502,7 @@ def _nominatim_places(query: str, limit: int = 8) -> list[dict]:
                 "country": country,
                 "parentCity": parent_city,
                 "parentLabel": parent_label,
+                "contextLabel": context_label,
                 "placeType": place_type,
                 "placeId": f"{item.get('osm_type', 'place')}:{item.get('osm_id', latitude)}",
                 "label": item.get("display_name") or f"{city}, {country}",
@@ -495,7 +514,7 @@ def _nominatim_places(query: str, limit: int = 8) -> list[dict]:
             }
         )
     results = results[:limit]
-    _write_api_cache("search_v6", cache_key, results)
+    _write_api_cache("search_v7", cache_key, results)
     return results
 
 

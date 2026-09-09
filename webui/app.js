@@ -332,9 +332,9 @@ function renderSuggestions(found, emptyMessage = '') {
       .split(',').map(part => part.trim()).filter(Boolean)
       .filter((part, partIndex) => partIndex > 0 && part.toLowerCase() !== place.city.toLowerCase())
       .slice(0, 3).join(', ') || place.country;
-    const hierarchy = place.placeType === 'LOCALITY' && place.parentLabel
+    const hierarchy = place.contextLabel || (place.placeType === 'LOCALITY' && place.parentLabel
       ? place.parentLabel
-      : inferredHierarchy;
+      : inferredHierarchy);
     const secondary = document.createElement('small'); secondary.textContent = hierarchy;
     const type = document.createElement('b'); type.textContent = place.placeType || 'CITY';
     button.append(primary, secondary, type);
