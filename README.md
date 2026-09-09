@@ -58,13 +58,16 @@ pip install -r requirements.txt
 
 ### Local Web UI
 
-Start the local browser UI:
+Copy the environment template, add a Geoapify key, and run the same Netlify Functions used in production:
 
 ```bash
-python web_server.py
+cp .env.example .env
+npx netlify dev
 ```
 
-Then open [http://127.0.0.1:8765](http://127.0.0.1:8765). If you use a virtual environment, start it with that Python so poster generation can access the installed dependencies:
+Open the local URL printed by Netlify. Using `netlify dev` keeps search and map-data behavior consistent with the deployed app and prevents the API key from entering the browser bundle.
+
+The Python server remains available for the legacy poster-generator workflow, but its search endpoint is not the production web-app implementation:
 
 ```bash
 source .venv/bin/activate
@@ -73,7 +76,7 @@ python web_server.py
 
 Search for a verified city or state, then compose the result using live OpenStreetMap street and water data. mapthis provides multiple visual languages, adjustable geographic extent and map detail, inscription editing, three framing compositions, and destination-specific previews for phone, desktop, and print.
 
-Exports are available as PNG or JPEG at up to 4,000 pixels on the longest edge. No API key is required for the local prototype.
+Exports are available as PNG or JPEG at up to 4,000 pixels on the longest edge. Verified autocomplete requires the Geoapify key in both local Netlify development and production.
 
 ### Generate Poster
 

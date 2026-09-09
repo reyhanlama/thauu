@@ -3,6 +3,8 @@ cache/*
 # Virtual environments
 env/
 .env/
+.env
+.netlify/
 .venv/
 venv/
 
