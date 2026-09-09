@@ -33,8 +33,11 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3
 .brand, .index-button { border: 0; background: transparent; font-size: 10px; font-weight: 500; letter-spacing: .16em; }
 .brand { justify-self: start; display: flex; gap: 9px; align-items: center; padding: 0; }
 .brand img { display: block; width: 28px; height: 28px; object-fit: cover; }
-.index-button { justify-self: end; padding: 8px 0; }
-.index-button:hover { color: var(--blue); }
+.index-button { position: relative; justify-self: end; min-width: 88px; min-height: 38px; padding: 0 12px; color: var(--ground); background: var(--ink); transition: color .2s, background .2s, transform .2s; }
+.index-button span { display: inline-block; margin-left: 7px; transition: transform .2s; }
+.index-button:hover { color: var(--ink); background: var(--acid); transform: translate(-2px,-2px); }
+.index-button:hover span { transform: translate(2px,-2px); }
+.index-button:focus-visible { outline-color: var(--red); }
 .signal { display: flex; gap: 10px; align-items: center; font-size: 8px; letter-spacing: .14em; }
 .signal i { width: 6px; height: 6px; border-radius: 50%; background: var(--red); animation: blink 1.8s infinite; }
 
