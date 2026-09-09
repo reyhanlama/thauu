@@ -1,3 +1,5 @@
+import { createProject, setProjectPlace, touchProject } from './project-state.js';
+
 const liveAppUrl = 'http://127.0.0.1:8765/';
 if (window.location.protocol === 'file:') window.location.replace(liveAppUrl);
 
@@ -58,9 +60,7 @@ const places = {
   lisbon: { city: 'Lisbon', country: 'Portugal', lat: '38.7223° N', lon: '9.1393° W', latNum: 38.7223, lonNum: -9.1393 }
 };
 
-let currentPlace = places.reykjavik;
-let currentMode = 'signal';
-let variant = 0;
+const project = createProject({ place: places.reykjavik, preferences: savedPreferences });
 let suggestionTimer;
 let searchRequest = 0;
 let searchController;
@@ -79,17 +79,17 @@ const modeNames = {
 function rememberPreferences() {
   try {
     window.localStorage.setItem(preferenceKey, JSON.stringify({
-      mode: currentMode,
+      mode: project.design.style,
       density: density.value,
       scope: scope.value,
       inscription: inscription.value,
-      output: selectedOutput || savedPreferences.output || null,
+      output: project.format || savedPreferences.output || null,
     }));
   } catch { /* The app remains fully usable when storage is unavailable. */ }
 }
 
 function restorePreferences() {
-  if (modeNames[savedPreferences.mode]) currentMode = savedPreferences.mode;
+  if (modeNames[savedPreferences.mode]) project.design.style = savedPreferences.mode;
   if (/^[1-5]$/.test(savedPreferences.density || '')) density.value = savedPreferences.density;
   if (/^[1-3]$/.test(savedPreferences.scope || '')) scope.value = savedPreferences.scope;
   if (typeof savedPreferences.inscription === 'string') inscription.value = savedPreferences.inscription.slice(0, 34);
@@ -221,7 +221,7 @@ function setMapTransform(svg, transform, point = markerPoint) {
 }
 
 function applyFrame(svg = document.querySelector('#poster-map')) {
-  const frame = framePresets[variant % framePresets.length];
+  const frame = framePresets[project.design.layoutVariant % framePresets.length];
   setMapTransform(svg, frame);
   const city = svg.querySelector('.map-city');
   const country = svg.querySelector('.map-country');
@@ -235,7 +235,7 @@ function applyFrame(svg = document.querySelector('#poster-map')) {
   country?.setAttribute('x', frame.metaX); country?.setAttribute('y', frame.countryY); country?.setAttribute('text-anchor', frame.metaAnchor);
   coordinates?.setAttribute('x', frame.metaX); coordinates?.setAttribute('y', frame.coordinatesY); coordinates?.setAttribute('text-anchor', frame.metaAnchor);
   attribution?.setAttribute('x', frame.attribution[0]); attribution?.setAttribute('y', frame.attribution[1]);
-  document.querySelector('#frame-count').textContent = `${variant % framePresets.length + 1} / ${framePresets.length}`;
+  document.querySelector('#frame-count').textContent = `${project.design.layoutVariant % framePresets.length + 1} / ${framePresets.length}`;
 }
 
 function isClosedRing(coordinates) {
@@ -284,7 +284,7 @@ function generateMap() {
     renderRealMap(realMapData);
     return;
   }
-  const rand = randomFrom(`${currentPlace.city}-${density.value}-${variant}`);
+  const rand = randomFrom(`${project.places[0].city}-${density.value}-${project.design.layoutVariant}`);
   const regions = document.querySelector('#map-regions');
   const water = document.querySelector('#map-water');
   const roads = document.querySelector('#map-roads');
@@ -412,8 +412,8 @@ async function locate(keyOrPlace) {
   placeInput.setAttribute('aria-expanded', 'false');
   const rawText = typeof keyOrPlace === 'string' ? keyOrPlace : keyOrPlace.city;
   const key = typeof keyOrPlace === 'string' && places[keyOrPlace] ? keyOrPlace : normalize(rawText);
-  currentPlace = typeof keyOrPlace === 'object' ? keyOrPlace : places[key];
-  if (!currentPlace) {
+  const nextPlace = typeof keyOrPlace === 'object' ? keyOrPlace : places[key];
+  if (!nextPlace) {
     signalCopy.textContent = 'CHOOSE A VERIFIED PLACE BELOW';
     searchForm.classList.add('needs-selection');
     await showSuggestions(rawText);
@@ -421,15 +421,15 @@ async function locate(keyOrPlace) {
     return;
   }
   placeInput.blur();
-  variant = 0;
-  if (!userAdjustedScope) scope.value = currentPlace.placeType === 'STATE' ? '3' : currentPlace.placeType === 'LOCALITY' ? '1' : '2';
+  setProjectPlace(project, nextPlace);
+  if (!userAdjustedScope) scope.value = nextPlace.placeType === 'STATE' ? '3' : nextPlace.placeType === 'LOCALITY' ? '1' : '2';
   updateScopeControl();
-  flightCity.textContent = (currentPlace?.city || rawText || 'Somewhere').toUpperCase();
-  flightCoord.textContent = currentPlace ? `${currentPlace.lat} / ${currentPlace.lon}` : 'RESOLVING COORDINATE';
+  flightCity.textContent = (nextPlace?.city || rawText || 'Somewhere').toUpperCase();
+  flightCoord.textContent = `${nextPlace.lat} / ${nextPlace.lon}`;
   flight.classList.add('is-active');
   flight.setAttribute('aria-hidden', 'false');
   realMapData = null;
-  const geographyPromise = loadGeography(currentPlace);
+  const geographyPromise = loadGeography(nextPlace);
   const slowTimer = window.setTimeout(() => {
     flightWord.textContent = 'STILL DRAWING';
     signalCopy.textContent = 'STREET DATA IS TAKING LONGER';
@@ -469,6 +469,7 @@ async function locate(keyOrPlace) {
 }
 
 function updatePlace() {
+  const currentPlace = project.places[0];
   document.querySelector('#place-city').textContent = currentPlace.city;
   document.querySelector('#place-country').textContent = placeSubtitle(currentPlace).toUpperCase();
   updateScopeControl();
@@ -501,7 +502,8 @@ function applyMapQualityGuidance(mapData) {
 }
 
 function setMode(mode, persist = true) {
-  currentMode = mode;
+  project.design.style = mode;
+  touchProject(project);
   app.dataset.mode = mode;
   document.querySelectorAll('.mode').forEach(button => {
     const active = button.dataset.mode === mode;
@@ -529,9 +531,10 @@ function fitLiveCityName() {
 
 function updateArtworkDescription() {
   const detail = detailLevels?.[density.value]?.[0] || 'Balanced';
-  const label = `${currentPlace.city} map poster, ${currentMode} style, ${detail.toLowerCase()} detail, ${scopeValue.textContent.toLowerCase()} extent.`;
+  const currentPlace = project.places[0];
+  const label = `${currentPlace.city} map poster, ${project.design.style} style, ${detail.toLowerCase()} detail, ${scopeValue.textContent.toLowerCase()} extent.`;
   document.querySelector('#artifact').setAttribute('aria-label', label);
-  document.querySelector('#artifact-status').textContent = `${currentPlace.city.toUpperCase()} · ${modeNames[currentMode]} · ${detail}`;
+  document.querySelector('#artifact-status').textContent = `${currentPlace.city.toUpperCase()} · ${modeNames[project.design.style]} · ${detail}`;
 }
 
 function goHome() {
@@ -540,7 +543,6 @@ function goHome() {
   window.setTimeout(() => placeInput.focus(), 450);
 }
 
-let selectedOutput = null;
 let exportFontCssPromise;
 
 const outputLayouts = {
@@ -550,14 +552,14 @@ const outputLayouts = {
 };
 
 function modeBaseColor() {
-  if (['void', 'night'].includes(currentMode)) return '#171716';
-  if (currentMode === 'trace') return '#2245e6';
-  if (currentMode === 'civic') return '#f2f0e9';
+  if (['void', 'night'].includes(project.design.style)) return '#171716';
+  if (project.design.style === 'trace') return '#2245e6';
+  if (project.design.style === 'civic') return '#f2f0e9';
   return '#f7f0d7';
 }
 
 function cityFontSize(maximum, availableWidth) {
-  const estimatedWidth = Math.max(1, currentPlace.city.length) * .53;
+  const estimatedWidth = Math.max(1, project.places[0].city.length) * .53;
   return Math.max(54, Math.min(maximum, availableWidth / estimatedWidth));
 }
 
@@ -586,7 +588,7 @@ function adaptSvgForOutput(svg, format) {
   base.setAttribute('width', layout.width);
   base.setAttribute('height', layout.height);
 
-  const frame = framePresets[variant % framePresets.length];
+  const frame = framePresets[project.design.layoutVariant % framePresets.length];
   const destination = format === 'phone'
     ? { scale: 1.75, target: [360, 520] }
     : format === 'screen'
@@ -688,7 +690,7 @@ function styledSvgClone(format, embeddedFontCss) {
     night: { base: '#171716', region: 'none', water: '#2245e6', road: '#e2f238', detail: '#f2f0e9', text: '#f2f0e9', target: '#f0442c' },
     survey: { base: '#f7f0d7', region: 'none', water: 'none', road: '#171716', detail: '#171716', text: '#171716', target: '#2245e6' }
   };
-  const palette = palettes[currentMode] || palettes.signal;
+  const palette = palettes[project.design.style] || palettes.signal;
   const detailOpacity = Number(density.value) >= 5 ? .9 : Number(density.value) >= 4 ? .72 : .6;
   const detailWidth = Number(density.value) >= 5 ? 1.35 : Number(density.value) >= 4 ? 1.15 : 1;
   const style = node('style');
@@ -699,7 +701,8 @@ function styledSvgClone(format, embeddedFontCss) {
 }
 
 function selectOutput(format) {
-  selectedOutput = format;
+  project.format = format;
+  touchProject(project);
   const proof = document.querySelector('#proof-artifact');
   proof.dataset.format = format;
   const preview = adaptSvgForOutput(document.querySelector('#poster-map').cloneNode(true), format);
@@ -735,22 +738,22 @@ function updateExportSizeLabels(format) {
 }
 
 async function exportRaster(preset, button) {
-  if (!selectedOutput) return;
+  if (!project.format) return;
   const qualities = {
     'png-max': { type: 'image/png', edge: 4000, quality: 1, suffix: 'max' },
     'jpeg-high': { type: 'image/jpeg', edge: 3200, quality: .92, suffix: 'high' },
     'jpeg-small': { type: 'image/jpeg', edge: 2000, quality: .82, suffix: 'small' }
   };
   const quality = qualities[preset];
-  const [width, height] = rasterDimensions(selectedOutput, quality.edge);
+  const [width, height] = rasterDimensions(project.format, quality.edge);
   const previous = button.innerHTML;
   button.disabled = true; button.textContent = 'RENDERING…';
   let svgUrl;
   try {
     await document.fonts.ready;
     const embeddedFontCss = await loadExportFontCss();
-    const clone = styledSvgClone(selectedOutput, embeddedFontCss);
-    const layout = outputLayouts[selectedOutput];
+    const clone = styledSvgClone(project.format, embeddedFontCss);
+    const layout = outputLayouts[project.format];
     clone.setAttribute('width', layout.width); clone.setAttribute('height', layout.height);
     const svgBlob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' });
     svgUrl = URL.createObjectURL(svgBlob);
@@ -763,7 +766,7 @@ async function exportRaster(preset, button) {
     if (!outputBlob) throw new Error('Image export failed.');
     const url = URL.createObjectURL(outputBlob);
     const extension = quality.type === 'image/png' ? 'png' : 'jpg';
-    const link = document.createElement('a'); link.href = url; link.download = `mapthis-${normalize(currentPlace.city)}-${selectedOutput}-${quality.suffix}.${extension}`;
+    const link = document.createElement('a'); link.href = url; link.download = `mapthis-${normalize(project.places[0].city)}-${project.format}-${quality.suffix}.${extension}`;
     document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     button.textContent = 'SAVED';
     await pause(500);
@@ -782,7 +785,7 @@ function revealArtifact() {
   finished.removeAttribute('id');
   proof.replaceChildren(finished);
   delete proof.dataset.format;
-  selectedOutput = null;
+  project.format = null;
   document.querySelector('#raster-exports').hidden = true;
   document.querySelectorAll('[data-preview]').forEach(button => button.classList.remove('is-selected'));
   document.querySelector('#proof-kicker').textContent = 'ARTIFACT / READY';
@@ -853,6 +856,7 @@ const detailLevels = {
 };
 
 function updateScopeControl() {
+  const currentPlace = project.places[0];
   const level = scopeLevels[scope.value] || scopeLevels[2];
   const radius = placeRadius(currentPlace, level);
   const stateLabels = { 1: 'NEAR', 2: 'CENTER', 3: 'WIDE' };
@@ -865,6 +869,7 @@ function updateScopeControl() {
 }
 
 function updateDetailControl() {
+  const currentPlace = project.places[0];
   let [label, description] = detailLevels[density.value];
   if (currentPlace.placeType === 'STATE') {
     const level = scopeLevels[scope.value] || scopeLevels[2];
@@ -880,14 +885,24 @@ function updateDetailControl() {
 
 density.addEventListener('input', () => {
   userAdjustedDensity = true;
+  project.design.detail = Number(density.value);
+  touchProject(project);
   updateDetailControl();
   generateMap();
   updateArtworkDescription();
   rememberPreferences();
 });
 
-scope.addEventListener('input', () => { userAdjustedScope = true; updateScopeControl(); updateDetailControl(); rememberPreferences(); });
+scope.addEventListener('input', () => {
+  userAdjustedScope = true;
+  project.design.extent = Number(scope.value);
+  touchProject(project);
+  updateScopeControl();
+  updateDetailControl();
+  rememberPreferences();
+});
 scope.addEventListener('change', async () => {
+  const currentPlace = project.places[0];
   const requestId = ++geographyRequest;
   scope.disabled = true;
   document.querySelector('#export-button').disabled = true;
@@ -912,12 +927,15 @@ scope.addEventListener('change', async () => {
 updateDetailControl();
 updateScopeControl();
 inscription.addEventListener('input', () => {
+  project.memory.line = inscription.value.slice(0, 34);
+  touchProject(project);
   document.querySelector('#map-inscription').textContent = inscription.value.toUpperCase() || 'UNTITLED COORDINATE';
   fitInscription(document.querySelector('#poster-map'));
   rememberPreferences();
 });
 document.querySelector('[data-reframe]').addEventListener('click', () => {
-  variant = (variant + 1) % framePresets.length;
+  project.design.layoutVariant = (project.design.layoutVariant + 1) % framePresets.length;
+  touchProject(project);
   applyFrame();
   fitLiveCityName();
   document.querySelector('.artifact').animate([{ transform: 'scale(.95) rotate(2deg)' }, { transform: 'scale(1) rotate(0)' }], { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' });
@@ -939,7 +957,7 @@ document.querySelector('[data-info]').addEventListener('click', () => infoDialog
 document.querySelector('[data-info-close]').addEventListener('click', () => infoDialog.close());
 
 restorePreferences();
-setMode(currentMode, false);
+setMode(project.design.style, false);
 makeWorld();
 generateMap();
 fitInscription(document.querySelector('#poster-map'));

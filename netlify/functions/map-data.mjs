@@ -12,8 +12,57 @@ function json(payload, status = 200, cacheControl = 'no-store') {
   });
 }
 
-function priority(feature) {
+const FEATURE_BUDGET = 3200;
+const FEATURE_QUOTAS = {
+  water: 500,
+  waterway: 350,
+  rail: 350,
+  majorRoad: 900,
+  otherRoad: 1100,
+};
+
+function roadPriority(feature) {
   return ({ motorway: 0, trunk: 1, primary: 2, secondary: 3, tertiary: 4 })[feature.class] ?? 10;
+}
+
+/**
+ * Keep the layers that make a place recognizable before filling the remaining
+ * payload with minor roads. Dense cities can otherwise exhaust the response
+ * budget before waterways and rail lines are reached.
+ */
+export function selectFeatures(features, budget = FEATURE_BUDGET) {
+  const groups = {
+    water: [],
+    waterway: [],
+    rail: [],
+    majorRoad: [],
+    otherRoad: [],
+  };
+  const majorRoads = new Set(['motorway', 'trunk', 'primary', 'secondary', 'tertiary']);
+
+  for (const feature of features) {
+    if (feature.kind === 'water') groups.water.push(feature);
+    else if (feature.kind === 'waterway') groups.waterway.push(feature);
+    else if (feature.kind === 'rail') groups.rail.push(feature);
+    else if (feature.kind === 'road' && majorRoads.has(feature.class)) groups.majorRoad.push(feature);
+    else if (feature.kind === 'road') groups.otherRoad.push(feature);
+  }
+
+  groups.majorRoad.sort((a, b) => roadPriority(a) - roadPriority(b));
+  const selected = [];
+  for (const [kind, quota] of Object.entries(FEATURE_QUOTAS)) {
+    selected.push(...groups[kind].slice(0, Math.min(quota, budget - selected.length)));
+    if (selected.length >= budget) return selected;
+  }
+
+  if (selected.length < budget) {
+    const selectedSet = new Set(selected);
+    const remainder = features
+      .filter(feature => !selectedSet.has(feature))
+      .sort((a, b) => roadPriority(a) - roadPriority(b));
+    selected.push(...remainder.slice(0, budget - selected.length));
+  }
+  return selected;
 }
 
 export default async function handler(request) {
@@ -76,13 +125,12 @@ export default async function handler(request) {
       features.push({ kind, class: featureClass, name: tags.name, coordinates });
     }
 
-    features.sort((a, b) => priority(a) - priority(b));
     const payload = {
       center: [longitude, latitude],
       bounds: [west, south, east, north],
       radius,
       attribution: '\u00a9 OpenStreetMap contributors',
-      features: features.slice(0, 3200),
+      features: selectFeatures(features),
     };
     memoryCache.set(cacheKey, payload);
     return json(payload, 200, 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800');
