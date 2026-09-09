@@ -63,6 +63,7 @@ let currentMode = 'signal';
 let variant = 0;
 let suggestionTimer;
 let searchRequest = 0;
+let searchController;
 let selectedSuggestion = null;
 let realMapData = null;
 let activeSuggestionIndex = -1;
@@ -354,18 +355,35 @@ function renderSuggestions(found, emptyMessage = '') {
 
 async function showSuggestions(query) {
   const requestId = ++searchRequest;
-  if (query.trim().length < 2) { suggestions.hidden = true; suggestions.replaceChildren(); placeInput.setAttribute('aria-expanded', 'false'); return; }
-  const local = matches(query).map(([, place]) => place);
+  searchController?.abort();
+  const trimmedQuery = query.trim();
+  if (trimmedQuery.length < 3) { suggestions.hidden = true; suggestions.replaceChildren(); placeInput.setAttribute('aria-expanded', 'false'); return; }
+  const local = matches(trimmedQuery).map(([, place]) => place);
   renderSuggestions(local);
   if (window.location.protocol === 'file:') return;
+  searchController = new AbortController();
   try {
-    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const response = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}`, { signal: searchController.signal });
     const data = await response.json();
-    if (requestId !== searchRequest || !response.ok) return;
+    if (requestId !== searchRequest) return;
+    if (!response.ok) {
+      const messages = {
+        SEARCH_NOT_CONFIGURED: 'PLACE SEARCH IS NOT CONFIGURED',
+        SEARCH_CONFIGURATION_ERROR: 'PLACE SEARCH CONFIGURATION NEEDS ATTENTION',
+        SEARCH_QUOTA_EXCEEDED: 'PLACE SEARCH IS BUSY · TRY AGAIN SHORTLY',
+        SEARCH_PROVIDER_TIMEOUT: 'PLACE SEARCH TIMED OUT · TRY AGAIN',
+      };
+      const message = messages[data.code] || 'PLACE SEARCH IS TEMPORARILY UNAVAILABLE';
+      if (!local.length) renderSuggestions([], message);
+      else searchStatus.textContent = 'Showing featured places; live search is temporarily unavailable.';
+      signalCopy.textContent = message;
+      return;
+    }
     const found = data.places || local;
     renderSuggestions(found, 'NO VERIFIED CITY, LOCALITY OR STATE FOUND');
     if (!found.length) signalCopy.textContent = 'NO VERIFIED PLACE FOUND';
-  } catch {
+  } catch (error) {
+    if (error?.name === 'AbortError') return;
     if (!local.length) {
       renderSuggestions([], 'PLACE SEARCH IS TEMPORARILY UNAVAILABLE');
       signalCopy.textContent = 'SEARCH UNAVAILABLE / TRY AGAIN';
@@ -801,10 +819,10 @@ placeInput.addEventListener('input', () => {
   selectedSuggestion = null;
   searchForm.classList.remove('needs-selection');
   signalCopy.textContent = 'SELECT A VERIFIED PLACE';
-  searchStatus.textContent = placeInput.value.trim().length < 2 ? 'Type at least two letters.' : 'Searching verified places…';
+  searchStatus.textContent = placeInput.value.trim().length < 3 ? 'Type at least three letters.' : 'Searching verified places…';
   document.querySelector('.search-action').textContent = 'SEARCH';
   window.clearTimeout(suggestionTimer);
-  suggestionTimer = window.setTimeout(() => showSuggestions(placeInput.value), 100);
+  suggestionTimer = window.setTimeout(() => showSuggestions(placeInput.value), 300);
 });
 placeInput.addEventListener('keydown', event => {
   const options = [...suggestions.querySelectorAll('[role="option"]')];

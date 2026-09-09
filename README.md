@@ -31,7 +31,7 @@ This repository includes Netlify Functions for live city/state search and map da
 - Publish directory: `webui`
 - Functions directory: `netlify/functions`
 
-The committed `netlify.toml` supplies those settings and routes `/api/search` and `/api/map-data` to the functions automatically. No environment variables are required for the prototype. Do not use Netlify Drop with only the `webui` folder because that excludes the API functions.
+The committed `netlify.toml` supplies those settings and routes `/api/search` and `/api/map-data` to the functions automatically. Add `GEOAPIFY_API_KEY` in **Site configuration → Environment variables** before deploying so verified place search can use Geoapify without exposing the key to the browser. Do not use Netlify Drop with only the `webui` folder because that excludes the API functions.
 
 ### With uv (Recommended)
 
