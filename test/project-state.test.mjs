@@ -5,6 +5,7 @@ import {
   MAPTHIS_PROJECT_VERSION,
   createProject,
   serializeProject,
+  setMemoryAnchor,
   setProjectPlace,
 } from '../webui/project-state.js';
 
@@ -39,4 +40,18 @@ test('project serialization contains no runtime geometry', () => {
 
   assert.equal(serialized.includes('features'), false);
   assert.equal(JSON.parse(serialized).places[0].city, 'Reykjavík');
+});
+
+test('setting a memory anchor preserves the searched place and updates the working center', () => {
+  const project = createProject({ place: reykjavik });
+
+  setMemoryAnchor(project, { lat: 64.1492, lon: -21.9331 });
+
+  const place = project.places[0];
+  assert.deepEqual(place.searchCenter, { lat: 64.1466, lon: -21.9426 });
+  assert.deepEqual(place.focusPoint, { lat: 64.1492, lon: -21.9331 });
+  assert.deepEqual(place.viewportCenter, place.focusPoint);
+  assert.deepEqual(place.memoryAnchor, place.focusPoint);
+  assert.equal(place.latNum, 64.1492);
+  assert.equal(place.lonNum, -21.9331);
 });

@@ -117,6 +117,19 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3
 .artifact { position: relative; z-index: 2; width: min(35vw, 410px); aspect-ratio: 3 / 4; margin: 0; overflow: hidden; background: #f7f0d7; box-shadow: 22px 26px 0 var(--red); transition: transform .6s cubic-bezier(.2,.8,.2,1), width .5s; }
 .artifact:focus { outline: 3px solid var(--acid); outline-offset: 6px; }
 .artifact:hover { transform: rotate(-1deg) translate(-5px,-4px); }
+.anchor-guide[hidden] { display: none; }
+.anchor-guide { position: absolute; z-index: 10; bottom: 24px; left: 50%; width: min(460px,calc(100% - 40px)); border: 1px solid var(--ink); padding: 15px; background: var(--ground); box-shadow: 9px 9px 0 var(--red); transform: translateX(-50%); }
+.anchor-guide > span { color: var(--red); font-size: 7px; letter-spacing: .15em; }
+.anchor-guide > strong { display: block; margin: 5px 0 3px; font: 400 22px/.95 var(--serif); }
+.anchor-guide > small { color: rgba(23,23,22,.58); font-size: 7px; letter-spacing: .1em; }
+.anchor-guide > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.anchor-guide button { min-height: 38px; border: 1px solid var(--ink); background: transparent; font-size: 7px; letter-spacing: .11em; }
+.anchor-guide [data-anchor-confirm] { color: var(--ground); background: var(--ink); }
+.anchor-guide [data-anchor-confirm]:disabled { opacity: .55; }
+.composer.is-anchoring .artifact { cursor: grab; touch-action: none; transform: none; box-shadow: 0 0 0 3px var(--acid),22px 26px 0 var(--red); }
+.composer.is-anchoring .artifact.is-dragging { cursor: grabbing; }
+.composer.is-anchoring .map-target { animation: anchor-pulse 1.5s ease-in-out infinite; }
+.composer.is-anchoring .reframe { opacity: 0; pointer-events: none; }
 #poster-map { display: block; width: 100%; height: 100%; }
 .map-base { fill: #f7f0d7; }
 .map-city { fill: #171716; font: 104px var(--serif); letter-spacing: -3px; }
@@ -146,7 +159,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3
 .reframe { position: absolute; z-index: 3; right: 22px; bottom: 18px; border: 0; background: transparent; font-size: 9px; letter-spacing: .11em; }.reframe span { display: inline-grid; place-items: center; width: 30px; height: 30px; margin-right: 8px; color: var(--ground); background: var(--ink); font-size: 15px; }.reframe small { margin-left: 6px; opacity: .52; font-size: 8px; }
 
 .context { position: relative; display: flex; flex-direction: column; border-left: 1px solid var(--ink); padding: 0 24px 28px; }
-.place-lockup { margin-top: clamp(28px,5vh,56px); }.place-lockup > span { color: var(--red); font-size: 9px; letter-spacing: .12em; }.place-lockup h2 { margin: 6px 0 8px; font: 400 48px/.85 var(--serif); letter-spacing: -.03em; }.place-lockup small { display: block; margin-bottom: 18px; color: rgba(23,23,22,.55); font-size: 9px; letter-spacing: .08em; }.place-lockup button { border: 0; border-bottom: 1px solid var(--ink); padding: 0 0 5px; background: transparent; font-size: 9px; letter-spacing: .1em; }
+.place-lockup { margin-top: clamp(28px,5vh,56px); }.place-lockup > span { color: var(--red); font-size: 9px; letter-spacing: .12em; }.place-lockup h2 { margin: 6px 0 8px; font: 400 48px/.85 var(--serif); letter-spacing: -.03em; }.place-lockup small { display: block; margin-bottom: 18px; color: rgba(23,23,22,.55); font-size: 9px; letter-spacing: .08em; }.place-actions { display: flex; flex-wrap: wrap; gap: 13px; }.place-lockup button { border: 0; border-bottom: 1px solid var(--ink); padding: 0 0 5px; background: transparent; font-size: 9px; letter-spacing: .1em; }
 .scope-control { margin-top: clamp(24px,4vh,42px); }
 .detail-control { margin-top: clamp(20px,3.2vh,36px); }
 .detail-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
@@ -215,6 +228,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3
 @keyframes fly { from { offset-distance: 0%; } to { offset-distance: 100%; } }
 @keyframes develop { from { transform: translateX(-110%); } to { transform: translateX(250%); } }
 @keyframes reveal-export { from { opacity: 0; transform: translateY(8px); } }
+@keyframes anchor-pulse { 50% { opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
 @media (max-width: 900px) {
@@ -225,6 +239,9 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3
   .composer { grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) 68px; }
   .artifact-space { grid-column: 1; padding: 12px 0 56px; }
   .artifact { width: min(67vw,380px); box-shadow: 10px 12px 0 var(--red); }.poster-orbit { width: 96vw; }
+  .anchor-guide { right: 12px; bottom: 132px; left: 12px; width: auto; transform: none; box-shadow: 7px 7px 0 var(--red); }
+  .anchor-guide > strong { font-size: 20px; }
+  .composer.is-anchoring .artifact { box-shadow: 0 0 0 3px var(--acid),10px 12px 0 var(--red); }
   .mode-rail { display: none; }
   .composer[data-mobile-panel="style"] .mode-rail { position: absolute; z-index: 20; right: 12px; bottom: 124px; left: 12px; display: flex; flex-direction: row; height: 104px; overflow-x: auto; border: 1px solid var(--ink); background: var(--ground); box-shadow: 8px 8px 0 var(--red); }
   .composer[data-mobile-panel="style"] .mode-rail { scrollbar-width: none; scroll-snap-type: x proximity; }
@@ -236,7 +253,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3
   .composer[data-mobile-panel="style"] .mode span { margin-top: 7px; font-size: 7px; writing-mode: horizontal-tb; transform: none; }
   .context { position: absolute; z-index: 8; top: 74px; right: 13px; width: 170px; border: 0; padding: 0; text-align: right; pointer-events: none; }
   .context > .rail-index,.context > .scope-control,.context > .detail-control,.context > .inscription,.context > .map-notice,.context > .mobile-map-status { display: none; }
-  .place-lockup { margin: 0; }.place-lockup h2 { margin: 4px 0 4px; font-size: 34px; }.place-lockup small { margin-bottom: 8px; font-size: 7px; }.place-lockup button { display: inline-flex; min-height: 44px; align-items: center; pointer-events: auto; }
+  .place-lockup { margin: 0; }.place-lockup h2 { margin: 4px 0 4px; font-size: 34px; }.place-lockup small { margin-bottom: 8px; font-size: 7px; }.place-actions { justify-content: flex-end; gap: 10px; }.place-lockup button { display: inline-flex; min-height: 44px; align-items: center; pointer-events: auto; }
   .composer[data-mobile-panel="map"] .context,.composer[data-mobile-panel="type"] .context { top: auto; right: 12px; bottom: 124px; left: 12px; width: auto; max-height: calc(100svh - 150px); overflow-y: auto; border: 1px solid var(--ink); padding: 22px; background: var(--ground); box-shadow: 8px 8px 0 var(--red); text-align: left; pointer-events: auto; }
   .composer[data-mobile-panel="map"] .context .place-lockup,.composer[data-mobile-panel="type"] .context .place-lockup { display: none; }
   .composer[data-mobile-panel="map"] .context > .scope-control,.composer[data-mobile-panel="map"] .context > .detail-control { display: block; margin: 0; }

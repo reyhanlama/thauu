@@ -62,6 +62,18 @@ export function setProjectPlace(project, place) {
   return touchProject(project);
 }
 
+export function setMemoryAnchor(project, point) {
+  const place = project.places[0];
+  const anchor = copyPoint(point?.lat, point?.lon);
+  if (!place || anchor.lat === null || anchor.lon === null) return project;
+  place.focusPoint = { ...anchor };
+  place.viewportCenter = { ...anchor };
+  place.memoryAnchor = { ...anchor };
+  place.latNum = anchor.lat;
+  place.lonNum = anchor.lon;
+  return touchProject(project);
+}
+
 export function serializeProject(project) {
   return JSON.stringify(project);
 }

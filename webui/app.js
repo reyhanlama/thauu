@@ -1,4 +1,5 @@
-import { createProject, setProjectPlace, touchProject } from './project-state.js';
+import { createProject, setMemoryAnchor, setProjectPlace, touchProject } from './project-state.js';
+import { focusPointFromPan, projectPoint } from './map-geometry.js';
 
 const liveAppUrl = 'http://127.0.0.1:8765/';
 if (window.location.protocol === 'file:') window.location.replace(liveAppUrl);
@@ -21,6 +22,12 @@ const scopeDescription = document.querySelector('#scope-description');
 const inscription = document.querySelector('#inscription');
 const searchStatus = document.querySelector('#search-status');
 const composer = document.querySelector('.composer');
+const artifact = document.querySelector('#artifact');
+const anchorGuide = document.querySelector('#anchor-guide');
+const anchorCoordinate = document.querySelector('#anchor-coordinate');
+const anchorButton = document.querySelector('[data-anchor]');
+const anchorCancel = document.querySelector('[data-anchor-cancel]');
+const anchorConfirm = document.querySelector('[data-anchor-confirm]');
 const exportDialog = document.querySelector('#export-dialog');
 const infoDialog = document.querySelector('#info-dialog');
 const svgNS = 'http://www.w3.org/2000/svg';
@@ -71,6 +78,7 @@ let geographyRequest = 0;
 let markerPoint = [360, 360];
 let userAdjustedScope = false;
 let userAdjustedDensity = Boolean(savedPreferences.density);
+let anchorDraft = { x: 0, y: 0, originX: 0, originY: 0, startX: 0, startY: 0, pointerId: null };
 
 const modeNames = {
   signal: 'EDITORIAL', terrain: 'TOPOGRAPHIC', trace: 'BLUEPRINT', void: 'NOIR', civic: 'SIGNAL', night: 'NIGHT', survey: 'QUIET'
@@ -188,14 +196,6 @@ function projectedPath(coordinates, bounds, close = false) {
   return `M${points.map(([x, y], index) => `${index ? 'L' : ''}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')}${close ? 'Z' : ''}`;
 }
 
-function projectPoint([lon, lat], bounds) {
-  const [west, south, east, north] = bounds;
-  return [
-    ((lon - west) / Math.max(.000001, east - west)) * 760 - 20,
-    ((north - lat) / Math.max(.000001, north - south)) * 760 - 20
-  ];
-}
-
 function combineTransforms(outer, inner) {
   return {
     scale: outer.scale * inner.scale,
@@ -218,6 +218,13 @@ function setMapTransform(svg, transform, point = markerPoint) {
     target.dataset.y = String(y);
     target.setAttribute('transform', `translate(${targetX.toFixed(2)} ${targetY.toFixed(2)})`);
   }
+}
+
+function setMapLayerTransform(svg, transform) {
+  const matrix = `matrix(${transform.scale} 0 0 ${transform.scale} ${transform.dx} ${transform.dy})`;
+  ['#map-regions', '#map-water', '#map-roads', '#map-detail'].forEach(selector => {
+    svg.querySelector(selector)?.setAttribute('transform', matrix);
+  });
 }
 
 function applyFrame(svg = document.querySelector('#poster-map')) {
@@ -393,14 +400,16 @@ async function showSuggestions(query) {
 
 const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
 
-async function loadGeography(place) {
-  if (window.location.protocol === 'file:' || !Number.isFinite(place.latNum) || !Number.isFinite(place.lonNum)) return null;
+async function loadGeography(place, center = place.focusPoint) {
+  const lat = Number(center?.lat ?? place.latNum);
+  const lon = Number(center?.lon ?? place.lonNum);
+  if (window.location.protocol === 'file:' || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   const level = scopeLevels[scope.value] || scopeLevels[2];
   const radius = placeRadius(place, level);
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 48000);
   try {
-    const response = await fetch(`/api/map-data?lat=${place.latNum}&lon=${place.lonNum}&radius=${radius}`, { signal: controller.signal });
+    const response = await fetch(`/api/map-data?lat=${lat}&lon=${lon}&radius=${radius}`, { signal: controller.signal });
     if (!response.ok) return null;
     return await response.json();
   } catch { return null; }
@@ -470,6 +479,7 @@ async function locate(keyOrPlace) {
 
 function updatePlace() {
   const currentPlace = project.places[0];
+  anchorButton.textContent = currentPlace.memoryAnchor ? 'ADJUST EXACT SPOT ↗' : 'SET EXACT SPOT ↗';
   document.querySelector('#place-city').textContent = currentPlace.city;
   document.querySelector('#place-country').textContent = placeSubtitle(currentPlace).toUpperCase();
   updateScopeControl();
@@ -537,7 +547,91 @@ function updateArtworkDescription() {
   document.querySelector('#artifact-status').textContent = `${currentPlace.city.toUpperCase()} · ${modeNames[project.design.style]} · ${detail}`;
 }
 
+function formatCoordinate(value, positive, negative) {
+  return `${Math.abs(value).toFixed(4)}° ${value >= 0 ? positive : negative}`;
+}
+
+function formattedAnchor(point) {
+  return `${formatCoordinate(point.lat, 'N', 'S')} · ${formatCoordinate(point.lon, 'E', 'W')}`;
+}
+
+function currentAnchorPoint() {
+  if (!realMapData?.bounds) return project.places[0].focusPoint;
+  const frame = framePresets[project.design.layoutVariant % framePresets.length];
+  return focusPointFromPan(markerPoint, realMapData.bounds, frame, anchorDraft);
+}
+
+function renderAnchorDraft() {
+  const frame = framePresets[project.design.layoutVariant % framePresets.length];
+  setMapLayerTransform(document.querySelector('#poster-map'), {
+    ...frame,
+    dx: frame.dx + anchorDraft.x,
+    dy: frame.dy + anchorDraft.y,
+  });
+  anchorCoordinate.textContent = formattedAnchor(currentAnchorPoint());
+}
+
+function exitAnchorMode({ reset = true } = {}) {
+  if (!composer.classList.contains('is-anchoring')) return;
+  composer.classList.remove('is-anchoring');
+  artifact.classList.remove('is-dragging');
+  anchorGuide.hidden = true;
+  anchorDraft = { x: 0, y: 0, originX: 0, originY: 0, startX: 0, startY: 0, pointerId: null };
+  anchorConfirm.disabled = false;
+  anchorConfirm.textContent = 'USE THIS SPOT';
+  document.querySelector('#export-button').disabled = false;
+  if (reset) applyFrame();
+}
+
+function beginAnchorMode() {
+  if (!realMapData?.features?.length) {
+    signalCopy.textContent = 'DRAW A PLACE BEFORE SETTING AN EXACT SPOT';
+    return;
+  }
+  closeMobilePanel();
+  anchorDraft = { x: 0, y: 0, originX: 0, originY: 0, startX: 0, startY: 0, pointerId: null };
+  anchorCancel.textContent = project.places[0].memoryAnchor ? 'CANCEL' : 'KEEP CITY CENTRE';
+  anchorCoordinate.textContent = formattedAnchor(project.places[0].focusPoint);
+  anchorGuide.hidden = false;
+  composer.classList.add('is-anchoring');
+  document.querySelector('#export-button').disabled = true;
+  signalCopy.textContent = 'MOVE THE MAP / THE MARK STAYS PUT';
+  artifact.focus({ preventScroll: true });
+}
+
+async function confirmAnchor() {
+  const nextPoint = currentAnchorPoint();
+  const currentPlace = project.places[0];
+  const requestId = ++geographyRequest;
+  anchorConfirm.disabled = true;
+  anchorConfirm.textContent = 'REDRAWING…';
+  signalCopy.textContent = 'REDRAWING AROUND YOUR EXACT SPOT';
+  const nextMapData = await loadGeography(currentPlace, nextPoint);
+  if (requestId !== geographyRequest) return;
+  if (!nextMapData?.features?.length) {
+    exitAnchorMode();
+    signalCopy.textContent = 'MAP DATA UNAVAILABLE / PREVIOUS SPOT KEPT';
+    return;
+  }
+  setMemoryAnchor(project, nextPoint);
+  currentPlace.lat = formatCoordinate(nextPoint.lat, 'N', 'S');
+  currentPlace.lon = formatCoordinate(nextPoint.lon, 'E', 'W');
+  realMapData = nextMapData;
+  applyMapQualityGuidance(realMapData);
+  exitAnchorMode({ reset: false });
+  updatePlace();
+  anchorButton.textContent = 'ADJUST EXACT SPOT ↗';
+  signalCopy.textContent = `EXACT SPOT / ${currentPlace.lat}`;
+}
+
+function moveAnchorBy(x, y) {
+  anchorDraft.x = Math.max(-210, Math.min(210, anchorDraft.x + x));
+  anchorDraft.y = Math.max(-210, Math.min(210, anchorDraft.y + y));
+  renderAnchorDraft();
+}
+
 function goHome() {
+  exitAnchorMode();
   app.classList.remove('is-composing'); app.classList.add('is-finding');
   signalCopy.textContent = 'SEEKING A COORDINATE';
   window.setTimeout(() => placeInput.focus(), 450);
@@ -847,6 +941,49 @@ document.addEventListener('click', event => {
 document.querySelectorAll('[data-place]').forEach(button => button.addEventListener('click', () => locate(button.dataset.place)));
 document.querySelectorAll('.mode').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode)));
 document.querySelectorAll('[data-home], [data-change]').forEach(button => button.addEventListener('click', goHome));
+anchorButton.addEventListener('click', beginAnchorMode);
+anchorCancel.addEventListener('click', () => {
+  exitAnchorMode();
+  signalCopy.textContent = project.places[0].memoryAnchor ? 'EXACT SPOT KEPT' : 'CITY CENTRE KEPT';
+});
+anchorConfirm.addEventListener('click', confirmAnchor);
+artifact.addEventListener('pointerdown', event => {
+  if (!composer.classList.contains('is-anchoring')) return;
+  event.preventDefault();
+  anchorDraft.pointerId = event.pointerId;
+  anchorDraft.startX = event.clientX;
+  anchorDraft.startY = event.clientY;
+  anchorDraft.originX = anchorDraft.x;
+  anchorDraft.originY = anchorDraft.y;
+  artifact.setPointerCapture(event.pointerId);
+  artifact.classList.add('is-dragging');
+});
+artifact.addEventListener('pointermove', event => {
+  if (anchorDraft.pointerId !== event.pointerId) return;
+  const scale = 720 / Math.max(1, artifact.getBoundingClientRect().width);
+  anchorDraft.x = Math.max(-210, Math.min(210, anchorDraft.originX + (event.clientX - anchorDraft.startX) * scale));
+  anchorDraft.y = Math.max(-210, Math.min(210, anchorDraft.originY + (event.clientY - anchorDraft.startY) * scale));
+  renderAnchorDraft();
+});
+function endAnchorDrag(event) {
+  if (anchorDraft.pointerId !== event.pointerId) return;
+  anchorDraft.pointerId = null;
+  artifact.classList.remove('is-dragging');
+}
+artifact.addEventListener('pointerup', endAnchorDrag);
+artifact.addEventListener('pointercancel', endAnchorDrag);
+artifact.addEventListener('keydown', event => {
+  if (!composer.classList.contains('is-anchoring')) return;
+  const movement = event.shiftKey ? 24 : 8;
+  if (event.key === 'ArrowLeft') moveAnchorBy(-movement, 0);
+  else if (event.key === 'ArrowRight') moveAnchorBy(movement, 0);
+  else if (event.key === 'ArrowUp') moveAnchorBy(0, -movement);
+  else if (event.key === 'ArrowDown') moveAnchorBy(0, movement);
+  else if (event.key === 'Enter') confirmAnchor();
+  else if (event.key === 'Escape') exitAnchorMode();
+  else return;
+  event.preventDefault();
+});
 const detailLevels = {
   1: ['ESSENTIAL', 'Only the roads that define the place.'],
   2: ['QUIET', 'Primary routes with a little local context.'],
@@ -863,7 +1000,10 @@ function updateScopeControl() {
   const localityLabels = { 1: 'LOCAL', 2: 'DISTRICT', 3: 'CITY' };
   scopeValue.textContent = currentPlace.placeType === 'STATE' ? stateLabels[scope.value] : currentPlace.placeType === 'LOCALITY' ? localityLabels[scope.value] : level.label;
   scopeDescription.textContent = `${(radius / 1000).toFixed(radius % 1000 ? 1 : 0)} km around the selected coordinate.`;
-  document.querySelector('#place-scope').textContent = `${currentPlace.placeType === 'STATE' ? 'STATE' : currentPlace.placeType === 'LOCALITY' ? 'LOCALITY' : 'CITY'} CENTER · ${(radius / 1000).toFixed(radius % 1000 ? 1 : 0)} KM FIELD`;
+  const centerLabel = currentPlace.memoryAnchor
+    ? 'EXACT SPOT'
+    : `${currentPlace.placeType === 'STATE' ? 'STATE' : currentPlace.placeType === 'LOCALITY' ? 'LOCALITY' : 'CITY'} CENTER`;
+  document.querySelector('#place-scope').textContent = `${centerLabel} · ${(radius / 1000).toFixed(radius % 1000 ? 1 : 0)} KM FIELD`;
   scope.style.setProperty('--detail-progress', `${(Number(scope.value) - 1) * 50}%`);
   updateArtworkDescription();
 }
