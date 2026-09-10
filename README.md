@@ -86,6 +86,39 @@ Search for a verified city or state, then compose the result using live OpenStre
 
 Exports are available as PNG or JPEG at up to 4,000 pixels on the longest edge. Verified autocomplete requires the Geoapify key in both local Netlify development and production.
 
+### Privacy-safe product analytics
+
+The production web app uses PostHog Cloud US for anonymous, categorical product
+analytics. The public frontend project key and US ingestion host are configured in
+the isolated browser adapter; no Netlify environment variable is required. The
+adapter initializes only on HTTPS at exactly `mapthis.xyz` or `www.mapthis.xyz`,
+so localhost, `file:` URLs, deploy previews, branch deploys, and custom hostnames
+are intentional no-ops.
+
+Autocapture, automatic page views and page leaves, session replay, surveys,
+persistent identity, feature-flag loading, and person profiles are disabled. A
+strict allowlist rejects unknown events, properties, and categorical values. The
+outgoing payload sanitizer removes URLs, paths, referrers, browser/device/session
+metadata, DOM content, and every property not required for delivery or included
+in this event dictionary:
+
+| Event | Categorical application properties |
+| --- | --- |
+| `app_opened` | none |
+| `search_submitted` | none |
+| `place_selected` | `place_type`: `city`, `locality`, `state`; `source`: `search`, `featured` |
+| `map_generated` | `place_type`: `city`, `locality`, `state`; `style`: `editorial`, `topographic`, `blueprint`, `noir`, `signal`, `night`, `quiet`; `detail`: `essential`, `quiet`, `balanced`, `rich`, `maximum`; `extent`: `close`, `city`, `region` |
+| `map_generation_failed` | `failure_type`: `timeout`, `network`, `http`, `empty`, `unknown`; `place_type`: `city`, `locality`, `state` |
+| `exact_spot_confirmed` | `place_type`: `city`, `locality`, `state` |
+| `output_flow_opened` | none |
+| `output_previewed` | `format`: `phone`, `desktop`, `print` |
+| `image_downloaded` | `format`: `phone`, `desktop`, `print`; `file_type`: `png`, `jpeg`; `quality`: `best`, `high`, `small` |
+| `image_export_failed` | `format`: `phone`, `desktop`, `print`; `file_type`: `png`, `jpeg`; `quality`: `best`, `high`, `small`; `failure_type`: `font`, `render`, `blob`, `download`, `unknown` |
+
+Never add search text, place names, coordinates, inscriptions, artwork, filenames,
+URLs, referrers, errors, project/place IDs, or app-defined identifiers to this
+contract. Any SDK upgrade requires a new payload and persistence audit.
+
 ### Generate Poster
 
 If you're using `uv`:

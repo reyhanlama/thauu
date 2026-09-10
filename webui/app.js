@@ -1,5 +1,6 @@
 import { createProject, setMemoryAnchor, setProjectPlace, touchProject } from './project-state.js';
 import { focusPointFromPan, projectPoint } from './map-geometry.js';
+import { analytics } from './analytics.js';
 
 const liveAppUrl = 'http://127.0.0.1:8765/';
 if (window.location.protocol === 'file:') window.location.replace(liveAppUrl);
@@ -83,6 +84,26 @@ let anchorDraft = { x: 0, y: 0, originX: 0, originY: 0, startX: 0, startY: 0, po
 const modeNames = {
   signal: 'EDITORIAL', terrain: 'TOPOGRAPHIC', trace: 'BLUEPRINT', void: 'NOIR', civic: 'SIGNAL', night: 'NIGHT', survey: 'QUIET'
 };
+
+const analyticsStyles = {
+  signal: 'editorial', terrain: 'topographic', trace: 'blueprint', void: 'noir', civic: 'signal', night: 'night', survey: 'quiet'
+};
+const analyticsDetails = { 1: 'essential', 2: 'quiet', 3: 'balanced', 4: 'rich', 5: 'maximum' };
+const analyticsExtents = { 1: 'close', 2: 'city', 3: 'region' };
+
+function analyticsPlaceType(place = project.places[0]) {
+  const type = String(place?.placeType || 'CITY').toLowerCase();
+  return ['city', 'locality', 'state'].includes(type) ? type : null;
+}
+
+function analyticsMapProperties(place = project.places[0]) {
+  return {
+    place_type: analyticsPlaceType(place),
+    style: analyticsStyles[project.design.style],
+    detail: analyticsDetails[density.value],
+    extent: analyticsExtents[scope.value],
+  };
+}
 
 function rememberPreferences() {
   try {
@@ -351,7 +372,7 @@ function renderSuggestions(found, emptyMessage = '') {
       placeInput.value = place.city;
       searchForm.classList.remove('needs-selection');
       searchStatus.textContent = `${place.city}, ${hierarchy} selected.`;
-      locate(place);
+      locate(place, 'search');
     });
     return button;
   }));
@@ -403,20 +424,26 @@ const pause = ms => new Promise(resolve => window.setTimeout(resolve, ms));
 async function loadGeography(place, center = place.focusPoint) {
   const lat = Number(center?.lat ?? place.latNum);
   const lon = Number(center?.lon ?? place.lonNum);
-  if (window.location.protocol === 'file:' || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (window.location.protocol === 'file:' || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return { mapData: null, failureType: 'unknown' };
+  }
   const level = scopeLevels[scope.value] || scopeLevels[2];
   const radius = placeRadius(place, level);
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 48000);
   try {
     const response = await fetch(`/api/map-data?lat=${lat}&lon=${lon}&radius=${radius}`, { signal: controller.signal });
-    if (!response.ok) return null;
-    return await response.json();
-  } catch { return null; }
+    if (!response.ok) return { mapData: null, failureType: 'http' };
+    const mapData = await response.json();
+    return { mapData, failureType: mapData?.features?.length ? null : 'empty' };
+  } catch (error) {
+    const failureType = error?.name === 'AbortError' ? 'timeout' : error instanceof TypeError ? 'network' : 'unknown';
+    return { mapData: null, failureType };
+  }
   finally { window.clearTimeout(timeout); }
 }
 
-async function locate(keyOrPlace) {
+async function locate(keyOrPlace, source = 'featured') {
   suggestions.hidden = true;
   placeInput.setAttribute('aria-expanded', 'false');
   const rawText = typeof keyOrPlace === 'string' ? keyOrPlace : keyOrPlace.city;
@@ -431,6 +458,7 @@ async function locate(keyOrPlace) {
   }
   placeInput.blur();
   setProjectPlace(project, nextPlace);
+  analytics.capture('place_selected', { place_type: analyticsPlaceType(nextPlace), source });
   if (!userAdjustedScope) scope.value = nextPlace.placeType === 'STATE' ? '3' : nextPlace.placeType === 'LOCALITY' ? '1' : '2';
   updateScopeControl();
   flightCity.textContent = (nextPlace?.city || rawText || 'Somewhere').toUpperCase();
@@ -458,7 +486,8 @@ async function locate(keyOrPlace) {
     });
     await pause(440);
   }
-  realMapData = await geographyPromise;
+  const geography = await geographyPromise;
+  realMapData = geography.mapData;
   window.clearTimeout(slowTimer);
   if (!realMapData?.features?.length) {
     flight.classList.remove('is-active');
@@ -467,11 +496,16 @@ async function locate(keyOrPlace) {
     app.classList.add('is-finding');
     signalCopy.textContent = 'MAP DATA UNAVAILABLE / TRY AGAIN';
     searchStatus.textContent = 'Map data could not be loaded. Choose the place again to retry.';
+    analytics.capture('map_generation_failed', {
+      failure_type: geography.failureType || 'unknown',
+      place_type: analyticsPlaceType(nextPlace),
+    });
     placeInput.focus();
     return;
   }
   applyMapQualityGuidance(realMapData);
   updatePlace();
+  analytics.capture('map_generated', analyticsMapProperties(nextPlace));
   await pause(220);
   app.classList.remove('is-finding'); app.classList.add('is-composing');
   flight.classList.remove('is-active'); flight.setAttribute('aria-hidden', 'true');
@@ -606,7 +640,7 @@ async function confirmAnchor() {
   anchorConfirm.disabled = true;
   anchorConfirm.textContent = 'REDRAWING…';
   signalCopy.textContent = 'REDRAWING AROUND YOUR EXACT SPOT';
-  const nextMapData = await loadGeography(currentPlace, nextPoint);
+  const { mapData: nextMapData } = await loadGeography(currentPlace, nextPoint);
   if (requestId !== geographyRequest) return;
   if (!nextMapData?.features?.length) {
     exitAnchorMode();
@@ -622,6 +656,7 @@ async function confirmAnchor() {
   updatePlace();
   anchorButton.textContent = 'ADJUST EXACT SPOT ↗';
   signalCopy.textContent = `EXACT SPOT / ${currentPlace.lat}`;
+  analytics.capture('exact_spot_confirmed', { place_type: analyticsPlaceType(currentPlace) });
 }
 
 function moveAnchorBy(x, y) {
@@ -814,6 +849,7 @@ function selectOutput(format) {
   document.querySelector('#proof-description').textContent = copy[2];
   updateExportSizeLabels(format);
   rememberPreferences();
+  analytics.capture('output_previewed', { format: format === 'screen' ? 'desktop' : format });
 }
 
 function rasterDimensions(format, edge) {
@@ -839,13 +875,21 @@ async function exportRaster(preset, button) {
     'jpeg-small': { type: 'image/jpeg', edge: 2000, quality: .82, suffix: 'small' }
   };
   const quality = qualities[preset];
+  if (!quality) return;
+  const analyticsProperties = {
+    format: project.format === 'screen' ? 'desktop' : project.format,
+    file_type: quality.type === 'image/png' ? 'png' : 'jpeg',
+    quality: preset === 'png-max' ? 'best' : preset === 'jpeg-high' ? 'high' : 'small',
+  };
   const [width, height] = rasterDimensions(project.format, quality.edge);
   const previous = button.innerHTML;
   button.disabled = true; button.textContent = 'RENDERING…';
   let svgUrl;
+  let failureType = 'font';
   try {
     await document.fonts.ready;
     const embeddedFontCss = await loadExportFontCss();
+    failureType = 'render';
     const clone = styledSvgClone(project.format, embeddedFontCss);
     const layout = outputLayouts[project.format];
     clone.setAttribute('width', layout.width); clone.setAttribute('height', layout.height);
@@ -856,15 +900,19 @@ async function exportRaster(preset, button) {
     const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
     const context = canvas.getContext('2d');
     context.drawImage(image, 0, 0, width, height);
+    failureType = 'blob';
     const outputBlob = await new Promise(resolve => canvas.toBlob(resolve, quality.type, quality.quality));
     if (!outputBlob) throw new Error('Image export failed.');
     const url = URL.createObjectURL(outputBlob);
     const extension = quality.type === 'image/png' ? 'png' : 'jpg';
     const link = document.createElement('a'); link.href = url; link.download = `mapthis-${normalize(project.places[0].city)}-${project.format}-${quality.suffix}.${extension}`;
+    failureType = 'download';
     document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    analytics.capture('image_downloaded', analyticsProperties);
     button.textContent = 'SAVED';
     await pause(500);
   } catch {
+    analytics.capture('image_export_failed', { ...analyticsProperties, failure_type: failureType || 'unknown' });
     button.textContent = 'TRY AGAIN';
     await pause(700);
   } finally {
@@ -887,6 +935,7 @@ function revealArtifact() {
   document.querySelector('#proof-description').textContent = 'Your place has already been made. Choose where you want to see it.';
   exportDialog.classList.remove('is-ready');
   exportDialog.showModal();
+  analytics.capture('output_flow_opened');
   window.setTimeout(() => exportDialog.classList.add('is-ready'), 900);
 }
 
@@ -901,10 +950,11 @@ function highlightSuggestion(nextIndex) {
 
 searchForm.addEventListener('submit', async event => {
   event.preventDefault();
+  if (placeInput.value.trim()) analytics.capture('search_submitted');
   const exactLocal = Object.values(places).find(place => normalize(place.city) === normalize(placeInput.value));
   const verified = selectedSuggestion && normalize(selectedSuggestion.city) === normalize(placeInput.value) ? selectedSuggestion : exactLocal;
   if (verified) {
-    locate(verified);
+    locate(verified, 'search');
     return;
   }
   signalCopy.textContent = 'CHOOSE A VERIFIED PLACE BELOW';
@@ -938,7 +988,7 @@ document.addEventListener('click', event => {
     placeInput.setAttribute('aria-expanded', 'false');
   }
 });
-document.querySelectorAll('[data-place]').forEach(button => button.addEventListener('click', () => locate(button.dataset.place)));
+document.querySelectorAll('[data-place]').forEach(button => button.addEventListener('click', () => locate(button.dataset.place, 'featured')));
 document.querySelectorAll('.mode').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode)));
 document.querySelectorAll('[data-home], [data-change]').forEach(button => button.addEventListener('click', goHome));
 anchorButton.addEventListener('click', beginAnchorMode);
@@ -1048,7 +1098,7 @@ scope.addEventListener('change', async () => {
   document.querySelector('#export-button').disabled = true;
   document.querySelector('#mobile-map-status').textContent = 'Redrawing map…';
   signalCopy.textContent = 'REDRAWING GEOGRAPHIC FIELD';
-  const nextMapData = await loadGeography(currentPlace);
+  const { mapData: nextMapData } = await loadGeography(currentPlace);
   if (requestId === geographyRequest && nextMapData?.features?.length) {
     realMapData = nextMapData;
     applyMapQualityGuidance(realMapData);
@@ -1101,3 +1151,5 @@ setMode(project.design.style, false);
 makeWorld();
 generateMap();
 fitInscription(document.querySelector('#poster-map'));
+analytics.initialize();
+analytics.capture('app_opened');

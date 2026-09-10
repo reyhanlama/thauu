@@ -2,14 +2,14 @@
 
 ## Status
 
-- Stage: Build
+- Stage: Test
 - Owner: Rehan
 - Branch: `codex/privacy-safe-analytics`
 - Baseline commit: `a8a3791`
 - Target remote and branch: `thauu/main` (`reyhanlama/thauu`)
 - Manager: analytics_manager agent
 - Designer: not applicable; see Design decision
-- Builder: pending distinct agent
+- Builder: analytics_builder_retry agent
 - Tester: pending distinct agent
 - Documenter: pending distinct agent
 - Merger: pending distinct agent after user approval
@@ -103,12 +103,13 @@ the entire event.
 ## Builder handoff
 
 - Relevant architecture: MapThis is a vanilla module-based frontend in `webui`; `webui/app.js` owns the search, map generation, Exact Spot, preview, and raster-export transitions. Production is the static `webui` publish surface plus Netlify Functions. The new analytics module must be the only PostHog boundary.
-- Changed files: this Manager context only; runtime files pending Builder.
-- Implementation decisions: use explicit event capture, production hostname/protocol gating, restrictive SDK initialization, memory-only anonymous behavior, strict event/property enum validation, asynchronous fail-open loading, and no direct vendor calls outside the adapter.
-- Tests added or updated: pending Builder; required coverage is listed in Acceptance criteria.
-- Known limitations: browsers or blockers may suppress analytics; production events will not appear during local or deploy-preview testing unless the Tester injects a fake adapter. This is intentional.
+- Changed files: `webui/analytics.js` adds the sole vendor boundary and contract; `webui/app.js` emits approved transition events; `webui/index.html` advances the app cache key; `test/analytics.test.mjs` covers the privacy boundary; `README.md` documents setup and the exact dictionary; this file records the handoff.
+- Implementation decisions: the browser SDK is loaded asynchronously from PostHog's US asset host only after canonical-production gating. Initialization disables autocapture, automatic page views/leaves, exception capture, session recording, surveys, external dependency loading, feature flags, persistence, and person profiles. Calls are rejected unless their event, full property set, and categorical values exactly match the contract. `before_send` rebuilds each event from a minimal transport-property allowlist plus validated application properties, dropping URL/referrer/DOM/browser/device/session defaults. The SDK remains memory-only and its unavoidable protocol identifier is never defined or persisted by application code. All failures are caught and silent.
+- Transition placement: `app_opened` follows core synchronous app initialization; search submissions require non-empty input; selection distinguishes verified search from featured shortcuts; initial generation emits one success or categorized failure; Exact Spot emits only after a successful redraw; output opening and explicit preview selection emit at their completed actions; download success follows blob creation and initiated click, while failures are categorized by font/render/blob/download stage.
+- Tests added or updated: `test/analytics.test.mjs` covers exact HTTPS hostname gating, the complete event dictionary, required-property and enum enforcement, unknown event/property rejection, restrictive SDK settings, vendor-payload stripping, queued capture, SDK-load failure, and capture failure. Builder ran `git diff --check`; `node --test test/*.test.mjs` (20 passed); and syntax checks for `webui/app.js`, `webui/analytics.js`, `webui/project-state.js`, `webui/map-geometry.js`, `netlify/functions/search.mjs`, and `netlify/functions/map-data.mjs` on 2026-09-10.
+- Known limitations: browsers or blockers may suppress analytics; production events will not appear during local or deploy-preview testing unless the Tester injects a fake adapter. This is intentional. PostHog's ephemeral protocol identifier remains necessary for delivery, but memory persistence and app-defined identifiers are prohibited. The Builder did not perform the independent production-shaped network audit.
 - Open issues: none material. The Tester must verify the chosen SDK configuration against actual emitted network payloads, including reload behavior, before approval.
-- Required next approval: Builder may implement only this recorded scope, then hand the immutable content candidate to a distinct Tester.
+- Required next approval: a distinct Tester must run the full automated gate and inspect sanitized production-shaped network payloads and reload persistence before assigning a verdict to the immutable content candidate.
 
 ## Tester report
 
