@@ -13,7 +13,7 @@
 - Tester: pending distinct agent
 - Documenter: pending distinct agent
 - Merger: pending distinct agent after user approval
-- Content candidate SHA: `7865521`
+- Content candidate SHA: pending replacement candidate after documentation corrections
 - Evidence-only metadata commit (if any): pending
 - Production commit: not released
 
@@ -46,7 +46,7 @@
   9. The README documents the analytics provider, production-only behavior, privacy contract, public-key configuration, local no-op behavior, and the exact event dictionary without publishing the real project key.
 - Success signal: PostHog can display the anonymous production funnel `app_opened → place_selected → map_generated → output_flow_opened → output_previewed → image_downloaded`, while a captured-request audit proves no prohibited geographic, authored, visual, filename, URL, or identity data is transmitted.
 - Risks:
-  - Vendor defaults or SDK upgrades could enable broader collection; mitigate with explicit restrictive initialization, an allowlisting adapter, a pinned dependency/loading approach, payload tests, and documented re-audit requirements.
+  - Vendor defaults or changes to the SDK served from the vendor CDN could enable broader collection; mitigate with explicit restrictive initialization, an allowlisting adapter, payload tests, and documented periodic and vendor-change re-audit requirements.
   - Duplicate events could distort conversion; mitigate with event placement at completed state transitions and exact-once tests per attempt/action.
   - Content blockers, network failures, or SDK load failures can remove measurements; acceptable because analytics must fail open and product behavior takes precedence.
   - Even an anonymous analytics SDK needs a protocol-level event identifier; configure memory-only/nonpersistent anonymous operation and forbid any app-defined or persisted identifier. Tester must confirm no identifier survives a page reload.
@@ -104,10 +104,10 @@ the entire event.
 
 - Relevant architecture: MapThis is a vanilla module-based frontend in `webui`; `webui/app.js` owns the search, map generation, Exact Spot, preview, and raster-export transitions. Production is the static `webui` publish surface plus Netlify Functions. The new analytics module must be the only PostHog boundary.
 - Changed files: `webui/analytics.js` adds the sole vendor boundary and contract; `webui/app.js` emits approved transition events; `webui/index.html` advances the app cache key; `test/analytics.test.mjs` covers the privacy boundary; `README.md` documents setup and the exact dictionary; this file records the handoff.
-- Implementation decisions: the browser SDK is loaded asynchronously from PostHog's US asset host only after canonical-production gating. Initialization disables autocapture, automatic page views/leaves, exception capture, session recording, surveys, external dependency loading, feature flags, persistence, and person profiles. Calls are rejected unless their event, full property set, and categorical values exactly match the contract. `before_send` rebuilds each event from a minimal transport-property allowlist plus validated application properties, dropping URL/referrer/DOM/browser/device/session defaults. The SDK remains memory-only and its unavoidable protocol identifier is never defined or persisted by application code. All failures are caught and silent.
+- Implementation decisions: the browser SDK is loaded asynchronously from PostHog's US asset host only after canonical-production gating. The public-key and ingestion-host configuration points are `POSTHOG_PROJECT_KEY` and `POSTHOG_HOST` in `webui/analytics.js`; their values are intentionally not duplicated here. Initialization disables autocapture, automatic page views/leaves, exception capture, session recording, surveys, external dependency loading, feature flags, persistence, and person profiles. Calls are rejected unless their event, full property set, and categorical values exactly match the contract. `before_send` rebuilds each event from a minimal transport-property allowlist plus validated application properties, dropping URL/referrer/DOM/browser/device/session defaults. The SDK remains memory-only and its unavoidable protocol identifier is never defined or persisted by application code. All failures are caught and silent.
 - Transition placement: `app_opened` follows core synchronous app initialization; search submissions require non-empty input; selection distinguishes verified search from featured shortcuts; initial generation emits one success or categorized failure; Exact Spot emits only after a successful redraw; output opening and explicit preview selection emit at their completed actions; download success follows blob creation and initiated click, while failures are categorized by font/render/blob/download stage.
 - Tests added or updated: `test/analytics.test.mjs` covers exact HTTPS hostname gating, the complete event dictionary, required-property and enum enforcement, unknown event/property rejection, restrictive SDK settings, vendor-payload stripping, queued capture, SDK-load failure, and capture failure. Builder ran `git diff --check`; `node --test test/*.test.mjs` (20 passed); and syntax checks for `webui/app.js`, `webui/analytics.js`, `webui/project-state.js`, `webui/map-geometry.js`, `netlify/functions/search.mjs`, and `netlify/functions/map-data.mjs` on 2026-09-10.
-- Known limitations: browsers or blockers may suppress analytics; production events will not appear during local or deploy-preview testing unless the Tester injects a fake adapter. This is intentional. PostHog's ephemeral protocol identifier remains necessary for delivery, but memory persistence and app-defined identifiers are prohibited. The Builder did not perform the independent production-shaped network audit.
+- Known limitations: browsers or blockers may suppress analytics; production events will not appear during local or deploy-preview testing unless the Tester injects a fake adapter. This is intentional. PostHog's ephemeral protocol identifier remains necessary for delivery, but memory persistence and app-defined identifiers are prohibited. The browser SDK is loaded from the vendor's unversioned `/static/array.js` CDN path, so its delivered code is not pinned by this repository; maintainers must perform periodic payload/persistence re-audits and repeat the audit whenever the vendor-served SDK changes. The Builder did not perform the independent production-shaped network audit.
 - Open issues: none material. The Tester must verify the chosen SDK configuration against actual emitted network payloads, including reload behavior, before approval.
 - Required next approval: a distinct Tester must run the full automated gate and inspect sanitized production-shaped network payloads and reload persistence before assigning a verdict to the immutable content candidate.
 
@@ -130,8 +130,8 @@ the entire event.
 - User-facing release note: pending
 - Migration or environment changes: no server secret or migration expected; pending confirmation
 - Privacy review: pending
-- Commit reviewed: pending
-- Verdict: pending
+- Commit reviewed: `7865521`
+- Verdict: CHANGES REQUIRED — correct the SDK pinning claim and document the unversioned vendor-CDN re-audit obligation and configuration symbols without reproducing their values.
 
 ## Final approval and release
 

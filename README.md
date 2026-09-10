@@ -89,11 +89,12 @@ Exports are available as PNG or JPEG at up to 4,000 pixels on the longest edge. 
 ### Privacy-safe product analytics
 
 The production web app uses PostHog Cloud US for anonymous, categorical product
-analytics. The public frontend project key and US ingestion host are configured in
-the isolated browser adapter; no Netlify environment variable is required. The
-adapter initializes only on HTTPS at exactly `mapthis.xyz` or `www.mapthis.xyz`,
-so localhost, `file:` URLs, deploy previews, branch deploys, and custom hostnames
-are intentional no-ops.
+analytics. Maintainers configure the public frontend project key and US ingestion
+host through `POSTHOG_PROJECT_KEY` and `POSTHOG_HOST` in
+[`webui/analytics.js`](webui/analytics.js); no Netlify environment variable is
+required. The adapter initializes only on HTTPS
+at exactly `mapthis.xyz` or `www.mapthis.xyz`, so localhost, `file:` URLs, deploy
+previews, branch deploys, and custom hostnames are intentional no-ops.
 
 Autocapture, automatic page views and page leaves, session replay, surveys,
 persistent identity, feature-flag loading, and person profiles are disabled. A
@@ -117,7 +118,8 @@ in this event dictionary:
 
 Never add search text, place names, coordinates, inscriptions, artwork, filenames,
 URLs, referrers, errors, project/place IDs, or app-defined identifiers to this
-contract. Any SDK upgrade requires a new payload and persistence audit.
+contract. Any change to the loaded SDK—including a vendor-served CDN change—
+requires a new payload and persistence audit.
 
 ### Generate Poster
 
