@@ -13,7 +13,7 @@
 - Tester: pending distinct agent
 - Documenter: pending distinct agent
 - Merger: pending distinct agent after user approval
-- Content candidate SHA: pending
+- Content candidate SHA: `7865521`
 - Evidence-only metadata commit (if any): pending
 - Production commit: not released
 
