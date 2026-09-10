@@ -22,6 +22,14 @@ Turn a meaningful city or state into a distinctive map artwork. The web product 
 
 ## Installation
 
+## Product development workflow
+
+Every MapThis product change uses a dedicated `codex/*` branch and passes through
+Manager, Design, Build, independent Test, Documentation, and explicit user
+approval before it can reach `main`. Start with
+[`docs/RELEASE_WORKFLOW.md`](docs/RELEASE_WORKFLOW.md); repository-wide agent
+rules are in [`AGENTS.md`](AGENTS.md).
+
 ## Deploy the web app to Netlify
 
 This repository includes Netlify Functions for live city/state search and map data, so the web app can be deployed as one Netlify project. Import the repository from GitHub and use these settings:
