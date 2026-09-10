@@ -12,7 +12,8 @@
 - Tester: release_tester agent (protocol) and pending independent implementation review
 - Documenter: workflow_documenter agent
 - Merger: pending distinct agent after user approval
-- Final tested and approved commit: pending
+- Content candidate SHA: pending corrected candidate
+- Evidence-only metadata commit (if any): pending
 - Production commit: not released
 
 ## Manager brief
@@ -73,8 +74,8 @@
 - User-facing release note: establishes the Manager → Designer → Builder → Tester → Documentation → approval → merge system.
 - Migration or environment changes: none.
 - Privacy review: no user or secret data included.
-- Commit reviewed: pending final workflow commit
-- Verdict: CHANGES REQUIRED on the uncommitted draft; seven consistency corrections were applied and re-review is pending.
+- Commit reviewed: `b3b8914cfeeec203f60f968111451821c222fd20`
+- Verdict: CHANGES REQUIRED; reviewers found pushed-range checking and approval-record consistency issues. Corrections are pending re-review.
 
 ## Final approval and release
 
@@ -83,7 +84,7 @@
 - Branch current with `thauu/main`: yes at creation
 - Final CI passing: pending branch push
 - User explicitly approved merge/push: no
-- Commit explicitly approved by user: none
+- Content candidate explicitly approved by user: none
 - Netlify deploy: not applicable until merge; runtime is unchanged
 - Production smoke test: documentation presence and GitHub check after release
 - Release outcome: awaiting gates

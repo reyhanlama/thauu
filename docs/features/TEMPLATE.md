@@ -12,7 +12,8 @@
 - Tester:
 - Documenter:
 - Merger:
-- Final tested and approved commit:
+- Content candidate SHA:
+- Evidence-only metadata commit (if any):
 - Production commit:
 
 ## Manager brief
@@ -83,7 +84,7 @@
 - Branch current with `thauu/main`:
 - Final CI passing:
 - User explicitly approved merge/push:
-- Commit explicitly approved by user:
+- Content candidate explicitly approved by user:
 - Netlify deploy:
 - Production smoke test:
 - Release outcome:

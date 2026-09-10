@@ -29,7 +29,15 @@ jobs:
         run: git diff --check origin/${{ github.base_ref }}...HEAD
       - name: Check pushed commit whitespace
         if: github.event_name == 'push'
-        run: git diff --check HEAD^...HEAD
+        shell: bash
+        run: |
+          before="${{ github.event.before }}"
+          if [[ "$before" =~ ^0+$ ]]; then
+            base="$(git merge-base origin/main HEAD)"
+            git diff --check "$base"...HEAD
+          else
+            git diff --check "$before"..."${{ github.sha }}"
+          fi
       - name: Check JavaScript syntax
         run: |
           node --check webui/app.js

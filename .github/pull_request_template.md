@@ -20,7 +20,7 @@
 
 ## Test evidence
 
-- Tested commit SHA:
+- Content candidate SHA:
 - Tester verdict: PASS / PASS WITH KNOWN LOW-RISK ISSUES / STOP SHIP
 - Commands:
 - Viewports/devices:
@@ -30,6 +30,6 @@
 
 ## Documentation evidence
 
-- Commit reviewed:
+- Content candidate reviewed:
 - Documentation verdict: APPROVED / CHANGES REQUIRED
 - Required corrections or remaining notes:

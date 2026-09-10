@@ -26,7 +26,7 @@ analytics change, and production fix in this repository.
 6. Never merge or push to `main` until the user explicitly approves that exact
    tested release.
 7. Material changes after test approval invalidate the approval and return the
-   feature to the Tester.
+   feature to the Tester. Approvals attach to an immutable content candidate SHA.
 8. Never commit secrets, real/local `.env` files, exact user locations,
    inscriptions, generated artwork, or private analytics payloads. A sanitized
    `.env.example` containing variable names and dummy values is allowed.
@@ -116,6 +116,17 @@ Every role receives and updates the same feature release file containing:
 - Automated/manual test evidence and visual captures
 - Risks, limitations, open issues, rollback, and required next approval
 - Exact commit approved by the Tester, Documenter, and user
+
+### Approval evidence commits
+
+Tester and Documentation verdicts approve an immutable **content candidate SHA**.
+A later commit may update only verdict fields, approval timestamps, evidence
+links, or release metadata in that feature's `release.md`. Such an evidence-only
+commit does not invalidate the approved candidate and does not itself need a new
+test/documentation cycle. It must not change requirements, workflow rules,
+runtime code, configuration, tests, or substantive documentation. The Merger
+verifies this with the diff. User approval applies to the candidate plus these
+evidence-only records.
 
 Do not make another agent reconstruct this context from chat history.
 

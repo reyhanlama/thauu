@@ -79,9 +79,13 @@ A material change alters runtime code, dependencies, configuration, user-visible
 copy/layout, behavior, privacy, security, analytics, or acceptance criteria. It
 invalidates Tester, Documentation, and user approval. Documentation-only
 corrections and additional evidence still require Documentation to approve the
-new commit; the Manager decides whether Tester retesting is affected and records
-the reason. `PASS WITH KNOWN LOW-RISK ISSUES` requires issue IDs, an owner, and
-explicit user acceptance.
+new content candidate; the Manager decides whether Tester retesting is affected
+and records the reason. A commit that changes only approval verdicts, timestamps,
+evidence links, or release metadata may record approval of its parent candidate
+without creating another approval cycle. The Merger must confirm it contains no
+substantive change. `PASS WITH KNOWN LOW-RISK ISSUES` is releasable only when the
+report includes issue IDs and an owner and the user explicitly accepts those
+issues with the candidate.
 
 ## Stop-ship conditions
 
@@ -98,9 +102,10 @@ explicit user acceptance.
 
 ## Release
 
-After an independent `PASS` and completed documentation, present the evidence to
-the user. The words "merge" or "push" must refer to this tested version; earlier
-general approval is not reusable after changes.
+After an independent `PASS`—or `PASS WITH KNOWN LOW-RISK ISSUES` satisfying the
+conditions above—and completed documentation, present the evidence to the user.
+The words "merge" or "push" must refer to this tested candidate; earlier general
+approval is not reusable after material changes.
 
 After explicit approval:
 
@@ -108,7 +113,7 @@ After explicit approval:
 git switch main
 git pull --ff-only thauu main
 git merge --ff-only codex/<short-feature-name>
-git diff --check HEAD^...HEAD
+git diff --check thauu/main...HEAD
 node --test test/*.test.mjs
 node --check webui/app.js
 node --check webui/project-state.js
